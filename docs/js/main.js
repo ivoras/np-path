@@ -542,6 +542,21 @@ async function theEnd() {
 }
 
 // ── the loop ────────────────────────────────────────────────────
+/**
+ * On desktop, looking does nothing until the pointer is locked, and nothing on
+ * screen says so — a player who never clicks the canvas concludes the mouse is
+ * broken. Say it, quietly, until they do.
+ */
+let _hintShown = false;
+function pointerHint() {
+  if (!current || paused || touchMode) return;
+  const need = !player.pointerLocked && player.enabled;
+  if (need === _hintShown) return;
+  _hintShown = need;
+  if (need) vo.hint('click to look around', 60);
+  else vo.clearHint();
+}
+
 function loop() {
   requestAnimationFrame(loop);
   if (!running) return;
@@ -552,6 +567,7 @@ function loop() {
   if (!paused) {
     player.update(dt);
     vo.update(dt);
+    pointerHint();
     current?.chapter.update?.(dt, current.ctx);
   }
   post.update(dt, elapsed);
