@@ -292,7 +292,17 @@ export default {
     vo.say('I observe.', { voice: 'watcher', hold: 4 });
 
     // ── PUZZLE: the great lens ───────────────────────────────────
+    // Say where to go. The turret is dark and the lens is the only thing in
+    // it that does anything; a player who does not walk to it gets no hints
+    // at all and simply stands there.
+    this._nudge = setInterval(() => {
+      if (this.phase === 'lens') return;
+      if (player.pos.distanceTo(this.lens.position) < 3.2) return;
+      vo.hint('the great lens, at the parapet', 5);
+    }, 22000);
+
     await until(() => player.pos.distanceTo(this.lens.position) < 3.2);
+    clearInterval(this._nudge);
     await wait(1.2);
     vo.hint('the glass is filthy', 5);
 
@@ -309,12 +319,16 @@ export default {
 
     vo.say('I rest my trembling hands on the great lens overlooking the path. It continues, oblivious to its audience.', { voice: 'watcher', delay: 2, hold: 9 });
 
+    const LOOK = ctx.isTouch ? 'drag to look' : 'move the mouse';
+    const ACT  = ctx.isTouch ? 'the button' : 'E';
+
     // the wipe: drag a look-direction across the eyepiece
+    vo.hint(`wipe the glass — ${LOOK}`, 7);
     await until(() => this.lensState.wiped >= 1);
     post.set('uSmear', 1.0);            // you polish the glass with a dirty sleeve
     vo.hint('it will not come properly clean', 4);
     await wait(2);
-    vo.hint('three collars · click to change one · move the mouse to turn it', 9);
+    vo.hint(`three collars · ${ACT} takes the next one · ${LOOK} to turn it`, 11);
 
     await until(() => this.lensState.solved);
 
@@ -480,11 +494,27 @@ export default {
         L.wiped = Math.min(1, L.wiped + dx * 0.55);
         post.set('uSmear', L.wiped * 0.85);
       } else if (!L.solved) {
-        // mouse-X turns the active collar
+        // The act input takes the next collar. Without this only collar 0 can
+        // be turned, and since the solve needs all three near zero the puzzle
+        // is unsolvable — which is exactly what shipped.
+        if (ctx.actionPressed) {
+          L.active = (L.active + 1) % L.collars.length;
+          audio.stoneSet();
+          ctx.vo.hint(`collar ${L.active + 1} of ${L.collars.length}`, 2.5);
+        }
+
+        // look-X turns the active collar
         const dx = player.yaw - (this._lastYaw ?? player.yaw);
         this._lastYaw = player.yaw;
         L.collars[L.active] = clamp(L.collars[L.active] - dx * 1.15, -1.4, 1.4);
         this.collars[L.active].rotation.z += dx * 2.2;
+
+        // Which collar your hands are on is mechanism state, not a solution
+        // hint — the player has to be able to tell the three apart.
+        this.collars.forEach((c, i) => {
+          c.material.emissive = new THREE.Color(C.ember)
+            .multiplyScalar(i === L.active ? 0.55 : 0.0);
+        });
 
         const err = L.collars.reduce((a, v) => a + Math.abs(v), 0);
 
@@ -497,19 +527,29 @@ export default {
         audio.setWind(0.7 * clamp(err, 0.06, 1), 0.75, 0.4);
         audio.setSub(clamp(1 - err, 0, 1) * 0.8, 0.4);
 
-        if (err < 0.06) {
+        if (err < 0.10) {
           L.solved = true;
           audio.setSub(0, 0.3);
         }
 
         // assist ladder: every 90 s the Watcher takes a sip and the mix
-        // biases so the convergence tone is easier to hear. Plateaus at 3.
+        // biases so the convergence tone is easier to hear.
         L.idle += dt;
+        L.total = (L.total || 0) + dt;
         if (L.idle > 90 && L.sips < 3) {
           L.idle = 0; L.sips++;
           ctx.vo.say('Another sip.', { voice: 'watcher', hold: 3 });
           audio.cup();
           audio.setWind(0.7 * (1 - L.sips * 0.25), 0.7, 3);
+        }
+        // and after four and a half minutes, name the worst collar. The
+        // player still has to turn it; the audio alone reports total error,
+        // so without this there is no way to tell which of three is at fault.
+        if (L.total > 270 && !L._named) {
+          L._named = true;
+          let worst = 0;
+          L.collars.forEach((v, i) => { if (Math.abs(v) > Math.abs(L.collars[worst])) worst = i; });
+          ctx.vo.hint(`collar ${worst + 1} is furthest out`, 6);
         }
       }
     }

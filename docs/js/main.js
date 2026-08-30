@@ -378,6 +378,7 @@ function makeCtx(chapter, token) {
   const alive = () => running && token === chapterToken;
   return {
     THREE, scene, camera, renderer, post, audio, player, vo, chapter,
+    get isTouch() { return !!touch?.enabled; },
     get actionHeld() { return input.held || !!touch?.actHeld; },
     get actionPressed() { return input.pressed || !!touch?.actPressed; },
 
