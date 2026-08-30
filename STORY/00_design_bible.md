@@ -367,7 +367,7 @@ a lockpick, a crate to push, an item to fetch from A to B, or a note that tells 
 
 | Ch. | Puzzle | Verb | Feedback channel |
 |---|---|---|---|
-| 01 | The Great Lens | **Look** — align three collars until two ghost plates register | Audio (a swell resolving to silence) |
+| 01 | The Great Lens | **Look** — align three collars until two ghost plates register | Visual (the marks on the barrel, the doubled image) + audio (a swell resolving to silence) |
 | 02 | The Cairns | **Walk** — restack three cairns; the fog opens a corridor for 8 s | Visual (fog density) |
 | 03 | The Knock | **Listen** — reproduce a rhythm heard for two chapters | Physical (blood on the door) |
 | 04 | The Footprints | **Walk differently** — 32 steps in someone else's gait | Audio + light (a knock and 2% darkness per step) |
@@ -414,6 +414,26 @@ naming the worst one.
 The general rule this stands for: **the game may be slow, quiet, and unexplained, but every puzzle
 must be closable by a player who is paying attention.** If a solve depends on precision the input
 device cannot express, that is a bug in the puzzle, not a difficulty setting.
+
+**Second revision, same puzzle.** Seating the collars made the solve *reachable* and left it
+*unreadable*: at the eyepiece the collar meshes are behind the eye, the drag turned the head and the
+glass at once, and the instruction said "line the two images up" over a render that drew the
+misregistration as colour fringing on one image. Three separate ways of showing the player nothing.
+
+The rule that fixes it — **a control the player cannot see is not a control** — has three parts, and
+every one of them is diegetic:
+
+1. **Show the mechanism.** Three brass rings are engraved around the eyepiece bezel, each scribed
+   with a mark, against one fixed pointer at the top. Mark on pointer is a seated collar. The ring
+   you have your hands on is brighter. This is a telescope's own scale, not a HUD.
+2. **Stop the frame.** While a chapter takes the look input, the head is locked (`player.lookLocked`
+   / `takeLook()`). If the whole world swings with the drag, the small thing the drag is actually
+   changing cannot be seen — so the player never learns the drag does anything.
+3. **Draw what the instruction names.** Past ~3 px of misregistration the shader composites a real
+   second exposure. "Two images" now refers to two images.
+
+Applies beyond ch01: **wherever an instruction names something, that thing must be on screen while
+the instruction is up.**
 
 ### No fail states
 

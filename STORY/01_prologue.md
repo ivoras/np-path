@@ -88,6 +88,10 @@ puzzle: the player is re-registering two print plates.
 - Collar **A** (outer) sets *distance* — pushes the two ghosts nearer or further along the path.
 - Collar **B** (middle) sets *rotation* — twists them against each other.
 - Collar **C** (inner) sets *convergence* — the fine overlap.
+- The three collars are **engraved on the bezel** of the eyepiece — three brass rings, each with a
+  scribed mark, and one fixed pointer at the top of the barrel. Bring a mark up to the pointer and
+  that collar is right. The ring under your hands is the bright one. While you are at the eyepiece
+  your head does not turn: the drag goes into the glass.
 - Each collar **seats** when it comes close enough — it drops onto zero with a sound of brass
   finding its bed, and holds there. (See *Resolution doctrine* in the bible: the original "no
   click, no snap" rule made the solve a coin flip.) There is still no meter and no UI. The collar

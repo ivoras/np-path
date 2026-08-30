@@ -24,6 +24,8 @@ export class Player {
     this.strideLength = 0.78;
     this.locked = false;        // ch01: "I was still. / Static."
     this.canMove = true;
+    this.lookLocked = false;      // a chapter has taken the look input
+    this.lookDX = 0; this.lookDY = 0;
     this.headingNoise = 0;      // ch06: a person cannot walk a straight line
 
     // ── state the chapters read ─────────────────────────────────
@@ -87,9 +89,26 @@ export class Player {
   _look(dx, dy, scale) {
     const sx = this.s.invertX ? -1 : 1;
     const sy = this.s.invertY ? -1 : 1;
-    this.yaw   -= dx * scale * sx;
-    this.pitch -= dy * scale * sy;
+    const ax = -dx * scale * sx;
+    const ay = -dy * scale * sy;
+
+    // A chapter can take the look input for itself — ch01's collars do. The
+    // head has to stop moving while it does. If the whole frame swings with
+    // the drag, the small thing the drag is actually changing is invisible,
+    // and the player never learns that the drag is doing anything at all.
+    if (this.lookLocked) { this.lookDX += ax; this.lookDY += ay; return; }
+
+    this.yaw   += ax;
+    this.pitch += ay;
     this.pitch = Math.max(-HALF_PI + 0.05, Math.min(HALF_PI - 0.05, this.pitch));
+  }
+
+  /** Radians of look input since the last call, and zero it. Only meaningful
+   *  while lookLocked; a chapter that polls this owns the input that frame. */
+  takeLook() {
+    const d = this.lookDX;
+    this.lookDX = 0; this.lookDY = 0;
+    return d;
   }
 
   enable()  { this.enabled = true; }

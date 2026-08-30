@@ -62,6 +62,9 @@ const RisoShader = {
     uBitonal:     { value: 0.0 },   // ch06 — two values, nothing between
     uPrint:       { value: 1.0 },   // player setting: scales grain + misregistration
     uEyepiece:    { value: 0.0 },   // ch01: you are looking THROUGH the lens
+    uCollars:     { value: new THREE.Vector3(0, 0, 0) },  // ch01: collar errors
+    uCollarActive:{ value: 0.0 },   // which one your hands are on
+    uCollarShow:  { value: 0.0 },   // the engraved scale, 0 until the collars
 
     cMoor:   { value: RAW.moor },
     cPetrol: { value: RAW.petrol },
@@ -98,7 +101,13 @@ const RisoShader = {
     uniform float uBitonal;
     uniform float uPrint;
     uniform float uEyepiece;
+    uniform vec3  uCollars;
+    uniform float uCollarActive;
+    uniform float uCollarShow;
     uniform vec3  cMoor, cPetrol, cCyan, cBone, cEmber, cAsh;
+
+    const float PI  = 3.14159265;
+    const float TAU = 6.28318531;
     varying vec2 vUv;
 
     float hash(vec2 p){
@@ -113,6 +122,17 @@ const RisoShader = {
     // The bands are deliberately uneven: the darks get a narrow band so the
     // moor does not swallow the frame, and the bone end gets a wide one so the
     // path stays the brightest object in the world.
+    // One engraved brass ring: a thin arc with a mark scribed on it. The mark
+    // sits at the top when that collar is at zero, so the whole puzzle reduces
+    // to a thing the eye can do — bring the mark up to the pointer.
+    vec3 collarRing(float r, float ang, float rr, float err, float act){
+      float arc   = exp(-pow((r - rr) * 200.0, 2.0));
+      float d     = abs(mod(ang - err * 2.0 + PI, TAU) - PI);
+      float mark  = exp(-pow(d * 22.0, 2.0)) * exp(-pow((r - rr) * 105.0, 2.0));
+      return cEmber * arc  * (0.14 + act * 0.30)
+           + cBone  * mark * (0.30 + act * 1.30);
+    }
+
     vec3 ramp(float l){
       if (l < 0.16) return mix(cMoor,   cPetrol, l / 0.16);
       if (l < 0.46) return mix(cPetrol, cCyan,   (l - 0.16) / 0.30);
@@ -138,6 +158,17 @@ const RisoShader = {
       float emberPlate = texture2D(tDiffuse, uv + off).r;    // warm plate
       vec2  coldPlate  = texture2D(tDiffuse, uv - off).gb;   // cold plate
       vec3 col = vec3(emberPlate, coldPlate);
+
+      // Past a few pixels the plates stop being fringing on one picture and
+      // become two pictures. ch01's puzzle asks the player to line two images
+      // up, so at that scale it has to actually give them two images —
+      // otherwise the instruction names something not on screen.
+      float ghost = smoothstep(2.5, 8.0, uMisreg * uPrint);
+      if (ghost > 0.001){
+        vec3 pa = texture2D(tDiffuse, uv + off * 1.4).rgb;
+        vec3 pb = texture2D(tDiffuse, uv - off * 1.4).rgb;
+        col = mix(col, mix(pa, pb, 0.5), ghost * 0.85);
+      }
 
       // ── the lens smear ────────────────────────────────────────
       // A greasy diagonal in one corner, acquired by polishing the glass
@@ -212,6 +243,26 @@ const RisoShader = {
         float ring = exp(-pow((r - 0.30) * 26.0, 2.0)) * 0.5;   // brass at the rim
         col = mix(col, cMoor * 0.25, bore * uEyepiece);
         col += cEmber * ring * uEyepiece * 0.5;
+
+        // Three collars, engraved on the barrel where you can see them. The
+        // meshes are behind the eye at the eyepiece, so without this the
+        // player turns something invisible and is told to align two things
+        // they were never shown.
+        if (uCollarShow > 0.001){
+          float ang = atan(e.x, e.y);                  // 0 at the top, clockwise
+          float a0 = step(uCollarActive, 0.5);
+          float a1 = step(0.5, uCollarActive) * step(uCollarActive, 1.5);
+          float a2 = step(1.5, uCollarActive);
+          vec3 marks = collarRing(r, ang, 0.325, uCollars.x, a0)
+                     + collarRing(r, ang, 0.355, uCollars.y, a1)
+                     + collarRing(r, ang, 0.385, uCollars.z, a2);
+
+          // the fixed pointer the marks have to meet
+          float dp  = abs(mod(ang + PI, TAU) - PI);
+          float ptr = exp(-pow(dp * 26.0, 2.0))
+                    * smoothstep(0.305, 0.318, r) * (1.0 - smoothstep(0.398, 0.410, r));
+          col += (marks + cBone * ptr * 0.55) * uCollarShow * uEyepiece;
+        }
       }
 
       // ── printed border ────────────────────────────────────────

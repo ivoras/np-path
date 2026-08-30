@@ -331,6 +331,7 @@ export default {
 
     this.phase = 'lens';
     player.canMove = false;
+    player.lookLocked = true;           // the drag turns the glass, not the head
     this.lensState = {
       wiped: 0,
       collars: [0.72, -0.55, 0.38],   // error per collar; target is 0
@@ -355,13 +356,15 @@ export default {
     post.set('uSmear', 1.0);            // you polish the glass with a dirty sleeve
     vo.hint('it will not come properly clean', 4);
     await wait(4);
-    vo.hint(`${ACT} for the next collar · ${LOOK} to turn it · line the two images up`, 999);
+    vo.hint(`${ACT} for the next collar · ${LOOK} left and right to turn it · bring its mark up to the pointer`, 999);
 
     await until(() => this.lensState.solved);
 
     // ── the solve ────────────────────────────────────────────────
     vo.clearHint();
     ctx.highlight.clear();              // spent: the aura goes out
+    post.u.uCollarShow.value = 0;
+    player.lookLocked = false;          // you get your head back
     // Perfect registration. Four full seconds with no audio at all.
     audio.silence(0.4);
     post.set('uMisreg', 0);
@@ -378,6 +381,7 @@ export default {
 
     await cut();
     this.phase = 'static';
+    post.u.uCollarShow.value = 0;
     this.turret.visible = false;
     this.rain.set(1);
     audio.setRain(1, 2);
@@ -520,11 +524,11 @@ export default {
     if (this.phase === 'lens' && this.lensState) {
       const L = this.lensState;
 
+      const look = player.takeLook();   // once per frame; the head is locked
+
       if (L.wiped < 1) {
-        // the wipe is a drag: accumulate look movement
-        const dx = Math.abs(player.yaw - (this._lastYaw ?? player.yaw));
-        this._lastYaw = player.yaw;
-        L.wiped = Math.min(1, L.wiped + dx * 0.55);
+        // the wipe is a drag over the glass
+        L.wiped = Math.min(1, L.wiped + Math.abs(look) * 0.55);
         post.set('uSmear', L.wiped * 0.85);
       } else if (!L.solved) {
         // The act input takes the next collar. Without this only collar 0 can
@@ -537,10 +541,13 @@ export default {
         }
 
         // look-X turns the active collar
-        const dx = player.yaw - (this._lastYaw ?? player.yaw);
-        this._lastYaw = player.yaw;
-        L.collars[L.active] = clamp(L.collars[L.active] - dx * 1.15, -1.4, 1.4);
-        this.collars[L.active].rotation.z += dx * 2.2;
+        L.collars[L.active] = clamp(L.collars[L.active] - look * 1.15, -1.4, 1.4);
+        this.collars[L.active].rotation.z += look * 2.2;
+
+        // and the barrel shows what your hands are doing
+        post.u.uCollarShow.value = 1;
+        post.u.uCollarActive.value = L.active;
+        post.u.uCollars.value.set(L.collars[0], L.collars[1], L.collars[2]);
 
         // A brass collar seats. Without a detent the solve asks the player to
         // hold three continuous values inside a combined 0.10 window using one
@@ -649,6 +656,9 @@ export default {
     ctx.player.eyeHeight = 1.70;
     ctx.player.canMove = true;
     ctx.player.locked = false;
+    ctx.player.lookLocked = false;      // never hand the next chapter a locked head
+    ctx.post.u.uCollarShow.value = 0;
+    ctx.post.u.uEyepiece.value = 0;
     ctx.post.set('uDesat', 0);
     ctx.post.set('uGrain', 0.09);
   },
