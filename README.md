@@ -72,5 +72,15 @@ synthesised in the Web Audio API.
 
 ## Publishing
 
-`docs/` is ready to serve as a GitHub Page. In **Settings → Pages**, set *Source* to
-**Deploy from a branch**, then choose the branch and the **`/docs`** folder.
+`docs/` is the site. GitHub Pages has to be switched on once by a repo admin — the Actions
+token cannot create the Pages site itself. Either option works:
+
+**A — GitHub Actions** (uses `.github/workflows/pages.yml`, already in the repo)
+1. **Settings → Pages → Source: GitHub Actions**
+2. Re-run the *Deploy THE PATH to GitHub Pages* workflow, or push to `master` / `mvp1`.
+
+**B — straight from the branch** (no workflow, no Actions minutes)
+1. **Settings → Pages → Source: Deploy from a branch**
+2. Branch `mvp1`, folder **`/docs`**.
+
+Either way the game lands at `https://ivoras.github.io/np-path/`.
