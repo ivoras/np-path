@@ -36,8 +36,7 @@ export default {
     // Players should half-think they have looped already.
     const H = (x, z) => noise.fbm(x * 0.012, z * 0.012, 4) * 2.0;
     this.H = H;
-    this.ground = makeTerrain(H, { size: 400, segments: 180, material: matte(C.moor) });
-    this.ground.position.z = 120;
+    this.ground = makeTerrain(H, { size: 400, segments: 180, material: matte(C.moor), centerZ: 120 });
     scene.add(this.ground);
 
     this.path = makePath(H, { length: 340, from: -30, width: 2.6 });

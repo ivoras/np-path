@@ -28,11 +28,15 @@ export default {
     this.altitude = 0;
 
     scene.fog = new THREE.FogExp2(new THREE.Color(C.moor).getHex(), 0.055);
-    this.sky = makeSky(scene, { low: C.moor, mid: C.moor, high: C.petrol, power: 1.4 });
+    // Water and sand both black — but the hill must still silhouette against
+    // the sky, or the chapter is unnavigable rather than merely dark. Light is
+    // the only breadcrumb this game has; under-guiding is the documented
+    // failure mode of both reference games.
+    this.sky = makeSky(scene, { low: C.moor, mid: C.petrol, high: C.cyan, power: 1.15 });
     this.lights = makeLights(scene, {
-      keyColor: C.cyan, keyIntensity: 0.5,
+      keyColor: C.cyan, keyIntensity: 0.85,
       keyDir: new THREE.Vector3(-0.8, 0.14, -0.3),
-      ambient: 0.62,
+      skyColor: C.cyan, groundColor: C.moor, ambient: 0.95,
     });
 
     // ── terrain: shore -> hill -> mountain, with no visible boundary ──
@@ -53,8 +57,7 @@ export default {
     };
     this.H = H;
 
-    this.ground = makeTerrain(H, { size: 420, segments: 240, material: matte(C.moor) });
-    this.ground.position.z = 100;
+    this.ground = makeTerrain(H, { size: 420, segments: 240, material: matte(C.moor), centerZ: 100 });
     scene.add(this.ground);
 
     // black water, indistinguishable from black sand

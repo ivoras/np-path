@@ -46,8 +46,7 @@ export default {
       return lerp(-0.8, island + hill, beach);
     };
     this.H = H;
-    this.ground = makeTerrain(H, { size: 300, segments: 200, material: matte(C.petrol), receiveShadow: true });
-    this.ground.position.z = 40;
+    this.ground = makeTerrain(H, { size: 300, segments: 200, material: matte(C.petrol), receiveShadow: true, centerZ: 40 });
     scene.add(this.ground);
 
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(500, 300), unlit(C.moor));
@@ -58,28 +57,72 @@ export default {
     // ── the half-tone forest ─────────────────────────────────────
     // Leaves black above, bone below. In wind the canopy inverts in patches,
     // and the forest reads as a moving half-tone screen.
-    this.canopy = [];
-    const leafGeoTop = new THREE.PlaneGeometry(1.5, 1.5);
+    // Instanced, not 3,600 individual meshes — the naive version is thousands
+    // of draw calls and tanks the frame rate on any hardware.
+    const spots = [];
     for (let i = 0; i < 900; i++) {
       const r = mulberry(i + 3000);
       const a = r() * Math.PI * 2, rad = 14 + r() * 62;
       const x = Math.cos(a) * rad, z = 60 + Math.sin(a) * rad;
       if (Math.hypot(x, z - 60) < 13) continue;           // the clearing
-      const y = H(x, z);
-      const h = 3 + r() * 5;
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.13, h, 5), matte(C.moor));
-      trunk.position.set(x, y + h / 2, z);
-      scene.add(trunk);
-      for (let l = 0; l < 3; l++) {
-        const leaf = new THREE.Mesh(leafGeoTop, matte(C.moor, { side: THREE.DoubleSide }));
-        leaf.position.set(x + (r() - 0.5) * 1.6, y + h * (0.6 + l * 0.16), z + (r() - 0.5) * 1.6);
-        leaf.rotation.set(-Math.PI / 2 + (r() - 0.5) * 0.7, r() * 3, (r() - 0.5) * 0.7);
-        leaf.userData.ph = r() * 6.28;
-        leaf.userData.base = leaf.rotation.x;
-        scene.add(leaf);
-        this.canopy.push(leaf);
-      }
+      spots.push({ x, z, y: H(x, z), h: 3 + r() * 5, r });
     }
+
+    const trunks = scatter(
+      new THREE.CylinderGeometry(0.06, 0.13, 1, 5), matte(C.moor), spots.length,
+      (i) => {
+        const s = spots[i];
+        return { x: s.x, y: s.y + s.h / 2, z: s.z, s: 1, sy: s.h };
+      }
+    );
+    // scatter() only does uniform scale, so stretch the trunks after the fact
+    {
+      const d = new THREE.Object3D(), m = new THREE.Matrix4();
+      for (let i = 0; i < spots.length; i++) {
+        trunks.getMatrixAt(i, m);
+        d.position.setFromMatrixPosition(m);
+        d.scale.set(1, spots[i].h, 1);
+        d.rotation.set(0, 0, 0);
+        d.updateMatrix();
+        trunks.setMatrixAt(i, d.matrix);
+      }
+      trunks.instanceMatrix.needsUpdate = true;
+    }
+    scene.add(trunks);
+
+    const leafCount = spots.length * 3;
+    this.leafMesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1.5, 1.5),
+      matte(C.moor, { side: THREE.DoubleSide }),
+      leafCount
+    );
+    this.leafMesh.frustumCulled = false;
+    this.leafPh = new Float32Array(leafCount);
+    this.leafBase = [];
+    {
+      const d = new THREE.Object3D();
+      let n = 0;
+      for (const s of spots) {
+        for (let l = 0; l < 3; l++) {
+          d.position.set(s.x + (s.r() - 0.5) * 1.6, s.y + s.h * (0.6 + l * 0.16), s.z + (s.r() - 0.5) * 1.6);
+          const rx = -Math.PI / 2 + (s.r() - 0.5) * 0.7;
+          d.rotation.set(rx, s.r() * 3, (s.r() - 0.5) * 0.7);
+          d.scale.setScalar(1);
+          d.updateMatrix();
+          this.leafMesh.setMatrixAt(n, d.matrix);
+          this.leafMesh.setColorAt(n, new THREE.Color(C.moor));
+          this.leafPh[n] = s.r() * 6.28;
+          n++;
+        }
+      }
+      this.leafMesh.count = n;
+      this.leafMesh.instanceMatrix.needsUpdate = true;
+      if (this.leafMesh.instanceColor) this.leafMesh.instanceColor.needsUpdate = true;
+    }
+    scene.add(this.leafMesh);
+    this._cMoor = new THREE.Color(C.moor);
+    this._cBone = new THREE.Color(C.bone);
+    this._cTmp = new THREE.Color();
 
     // nests, hives, burrows — every affordance of a living forest, all empty
     const nests = scatter(
@@ -324,14 +367,18 @@ export default {
     this.t += dt;
     const { player, post, audio, vo } = ctx;
 
-    // the canopy inverts in slow, large patches
-    this.canopy.forEach(l => {
-      const n = Math.sin(this.t * 0.28 + l.userData.ph);
-      l.rotation.x = l.userData.base + n * 0.35;
-      l.material.color.lerpColors(
-        new THREE.Color(C.moor), new THREE.Color(C.bone), clamp(n * 0.5 + 0.5, 0, 1) * 0.75
-      );
-    });
+    // The canopy inverts in slow, large patches: black above, bone below, so
+    // the forest reads as a moving half-tone screen. Colour only — rotating
+    // 2,700 instances every frame is not worth the cost.
+    if (this.leafMesh && this.leafMesh.instanceColor) {
+      const n = this.leafMesh.count;
+      for (let i = 0; i < n; i++) {
+        const w = Math.sin(this.t * 0.28 + this.leafPh[i]);
+        this._cTmp.lerpColors(this._cMoor, this._cBone, clamp(w * 0.5 + 0.5, 0, 1) * 0.75);
+        this.leafMesh.setColorAt(i, this._cTmp);
+      }
+      this.leafMesh.instanceColor.needsUpdate = true;
+    }
 
     // ── the footprint ring ───────────────────────────────────────
     if (this.ring && !this.ring.done && (this.phase === 'shallows' || this.phase === 'ring' || this.phase === 'wait')) {

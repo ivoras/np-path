@@ -58,6 +58,7 @@ const RisoShader = {
     uWhiteFade:   { value: 0.0 },   // to bone — ch06 ends on this
     uDesat:       { value: 0.0 },
     uSqueeze:     { value: 0.0 },   // ch05 "Flattened. / Expanded."
+    uBitonal:     { value: 0.0 },   // ch06 — two values, nothing between
 
     cMoor:   { value: RAW.moor },
     cPetrol: { value: RAW.petrol },
@@ -91,6 +92,7 @@ const RisoShader = {
     uniform float uWhiteFade;
     uniform float uDesat;
     uniform float uSqueeze;
+    uniform float uBitonal;
     uniform vec3  cMoor, cPetrol, cCyan, cBone, cEmber, cAsh;
     varying vec2 vUv;
 
@@ -165,6 +167,14 @@ const RisoShader = {
 
       col = mix(col, inked, uPaletteMix);
 
+      // ── ch06: a 1-bit print ───────────────────────────────────
+      // A 2-step posterise still lands midtones on the ramp's cyan band,
+      // which is not the same thing as two values. This is.
+      if (uBitonal > 0.001){
+        vec3 bit = mix(cMoor, cBone, step(0.42, l));
+        col = mix(col, bit, uBitonal);
+      }
+
       // ── paper tooth ───────────────────────────────────────────
       // Screen-locked, not world-locked: it sits on the glass in front of
       // the world. (ch06 world-locks it to the floor — done in that scene,
@@ -228,6 +238,9 @@ export class Post {
 
   set(name, value) { if (this.u[name]) this.u[name].value = value; }
   get(name) { return this.u[name] ? this.u[name].value : undefined; }
+
+  /** Ink-bleed bloom strength. ch06 turns it off — nothing there glows. */
+  setBloom(strength) { this.bloom.strength = strength; }
 
   update(dt, elapsed) {
     this.u.uTime.value = elapsed;

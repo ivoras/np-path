@@ -40,7 +40,7 @@ export default {
     // The erasure mask: white on top, moor black underneath. Walking wears
     // the white off. The path was never drawn onto the world — it was worn
     // into it.
-    const S = 1024;
+    const S = 2048;   // 400 world units across — coarser and the line is a smear
     this.cv = document.createElement('canvas');
     this.cv.width = this.cv.height = S;
     this.cx = this.cv.getContext('2d');
@@ -60,7 +60,7 @@ export default {
     this.cx.lineCap = 'round';
     FRAGMENTS.forEach((f, i) => {
       const [u, v] = this.toUV(f.x, f.z);
-      this.cx.lineWidth = 15;
+      this.cx.lineWidth = 10;
       this.cx.beginPath();
       this.cx.moveTo(u, v - f.len * 2.4);
       this.cx.lineTo(u + (i % 2 ? 5 : -5), v + f.len * 2.4);
@@ -114,16 +114,18 @@ export default {
     // a person cannot walk a straight line, and there is nothing to sight on
     player.headingNoise = 0.028;
 
-    ctx.post.set('uPosterize', 2);       // pure bitonal
+    ctx.post.set('uBitonal', 1);         // two values, nothing between
+    ctx.post.set('uPosterize', 2);
     ctx.post.set('uVignette', 0);        // the image bleeds to the frame edge
     ctx.post.set('uMisreg', 0);          // a two-plate image has nothing to misregister
     ctx.post.set('uGrain', 0.0);         // the tooth is on the floor now, not the glass
     ctx.post.set('uPaletteMix', 1.0);
+    ctx.post.setBloom(0);                // nothing here glows
   },
 
   toUV(x, z) {
     // world -> canvas. The sheet is 400 wide, centred on (0, 80).
-    return [(x + 200) / 400 * 1024, (z - 80 + 200) / 400 * 1024];
+    return [(x + 200) / 400 * 2048, (z - 80 + 200) / 400 * 2048];
   },
 
   erase(x, z, r = 9) {
@@ -219,8 +221,8 @@ export default {
     // the erasure continues on its own, past a horizon that does not exist
     if (this.running) {
       this._r = (this._r || 0) + dt * 9;
-      this.erase(player.pos.x + Math.sin(this._r * 0.2) * 2, player.pos.z + this._r, 10);
-      this.erase(player.pos.x - Math.sin(this._r * 0.2) * 2, player.pos.z - this._r, 10);
+      this.erase(player.pos.x + Math.sin(this._r * 0.2) * 2, player.pos.z + this._r, 7);
+      this.erase(player.pos.x - Math.sin(this._r * 0.2) * 2, player.pos.z - this._r, 7);
     }
 
     // assists: a camera drift to the feet, then one fragment darkening
@@ -250,13 +252,16 @@ export default {
     // the mark is permanent. Nothing regenerates, and there is no undo.
     // Walking slowly wears more; a good line needs the same deliberate,
     // unnatural gait as ch04 — and the game does not explain the joke.
-    const r = lerp(11, 5.5, this._lastInput ?? 0.5);
+    // walking slowly wears more; a good line needs a deliberate gait
+    const r = lerp(7.5, 3.4, this._lastInput ?? 0.5);
     this.erase(e.x, e.z, r);
   },
 
   dispose(ctx) {
     ctx.player.headingNoise = 0;
     ctx.player.canMove = true;
+    ctx.post.set('uBitonal', 0);
+    ctx.post.setBloom(0.62);
     ctx.post.set('uPosterize', 24);
     ctx.post.set('uVignette', 0.72);      // returns heavier than it has ever been
     ctx.post.set('uGrain', 0.09);

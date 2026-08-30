@@ -50,8 +50,8 @@ export default {
     this.H = H;
     this.ground = makeTerrain(H, {
       size: 420, segments: 200, material: matte(C.moor), receiveShadow: true,
+      centerZ: 110,
     });
-    this.ground.position.z = 110;
     scene.add(this.ground);
 
     // the path runs dead straight — because it was drawn by something that
@@ -135,6 +135,19 @@ export default {
     // held at zero until the last cut, where the ch01 rain returns
     this.rain = new Rain(scene, 2400, { radius: 22, height: 18, speed: 20 });
     this.rain.set(0);
+
+    // ── the body that casts them ─────────────────────────────────
+    // The player has had no shadow for the whole game and now has two, so
+    // there has to be something to throw them. colorWrite/depthWrite off
+    // means the camera never draws it, but the shadow pass — which uses its
+    // own depth material — still does.
+    this.body = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.26, 1.05, 4, 10),
+      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+    );
+    this.body.castShadow = true;
+    this.body.frustumCulled = false;
+    scene.add(this.body);
 
     player.groundAt = (x, z) => H(x, z);
     player.surfaceAt = (x, z) => (Math.abs(x) < 1.4 ? 'slab' : 'heather');
@@ -239,6 +252,7 @@ export default {
     const { player, post, audio, camera, vo } = ctx;
 
     this.rain.update(dt, camera.position);
+    this.body.position.set(player.pos.x, player.pos.y + 0.92, player.pos.z);
 
     // ── the two shadows ──────────────────────────────────────────
     // Light A at the vanishing point ahead; Light B behind and below, at the

@@ -30,11 +30,20 @@ export default {
 
     scene.fog = new THREE.FogExp2(new THREE.Color(C.moor).getHex(), 0.062);
     this.sky = makeSky(scene, { low: C.moor, mid: C.moor, high: C.petrol, power: 1.6 });
+    // The darkest scene in the game — value range compressed to the bottom of
+    // the histogram, and held there for seven minutes so the eye fully adapts
+    // before the white. But the door still has to read: it is the only thing
+    // the player can act on.
     this.lights = makeLights(scene, {
-      keyColor: C.petrol, keyIntensity: 0.35,
-      keyDir: new THREE.Vector3(0.4, 0.2, 1),
-      ambient: 0.34,
+      keyColor: C.cyan, keyIntensity: 0.55,
+      keyDir: new THREE.Vector3(0.4, 0.25, 1),
+      skyColor: C.petrol, groundColor: C.moor, ambient: 0.5,
+      fillColor: C.ember, fillIntensity: 0.35,
     });
+    // one practical on the porch, so the door and the hands are legible
+    const porchLight = new THREE.PointLight(C.ember, 5.5, 11, 2);
+    porchLight.position.set(0, 2.9, 2.2);
+    scene.add(porchLight);
 
     // ── the porch ────────────────────────────────────────────────
     // A single static location. The player cannot leave. After two chapters
@@ -130,7 +139,8 @@ export default {
       if (this.phase === 'white') return 'nothing';
       return 'wood';
     };
-    player.teleport(0, 1.4, 0);
+    // facing the door, which is the only thing in this chapter
+    player.teleport(0, 1.4, Math.PI);
     player.canMove = false;                    // you cannot leave the porch
 
     ctx.post.set('uMisreg', 4.0);

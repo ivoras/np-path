@@ -121,15 +121,21 @@ export function makeLights(scene, {
  */
 export function makeTerrain(fn, {
   size = 400, segments = 190, material = null, receiveShadow = false,
+  centerX = 0, centerZ = 0,
 } = {}) {
   const geo = new THREE.PlaneGeometry(size, size, segments, segments);
   geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position;
+  // Sample in WORLD space and carry the same offset on the mesh, so the
+  // visible ground and the player's ground query can never disagree. Moving
+  // the mesh without shifting the sample slides the terrain out from under
+  // the collision heightfield.
   for (let i = 0; i < p.count; i++) {
-    p.setY(i, fn(p.getX(i), p.getZ(i)));
+    p.setY(i, fn(p.getX(i) + centerX, p.getZ(i) + centerZ));
   }
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, material || matte(C.moor));
+  mesh.position.set(centerX, 0, centerZ);
   mesh.receiveShadow = receiveShadow;
   return mesh;
 }
