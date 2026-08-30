@@ -272,7 +272,8 @@ async function boot() {
   clock = new THREE.Clock();
   running = true;
   if (location.search.includes('debug=1'))
-    window.__T = { player, post, get u(){return post.u}, get ch(){return current?.chapter} };
+    window.__T = { player, post, get u(){return post.u},
+                   get ch(){return current?.chapter}, get ctx(){return current?.ctx} };
 
   addEventListener('resize', onResize);
   addEventListener('orientationchange', () => setTimeout(onResize, 250));
@@ -380,6 +381,33 @@ function setPaused(p) {
 // ── ctx helpers the chapter scripts run on ─────────────────────
 function makeCtx(chapter, token) {
   const alive = () => running && token === chapterToken;
+
+  // ── the Cut's shutter ──────────────────────────────────────────
+  // Timed in seconds. Closing snaps, the bone is held long enough to read at
+  // any refresh rate, and the opening is slower — the shutter is described as
+  // "slowed 30%", and the reveal should feel like an eye opening, not a cut.
+  const CLOSE = 0.17, HOLD = 0.10, OPEN = 0.30;
+  const ease = (x) => x * x * (3 - 2 * x);
+
+  const sweep = (from, to, dur, hold) => new Promise((resolve) => {
+    const t0 = performance.now();
+    const tick = () => {
+      if (!alive()) { post.set('uShutter', 0); return resolve(); }
+      const t = (performance.now() - t0) / 1000;
+      if (t >= dur) {
+        post.set('uShutter', to);
+        if (t >= dur + hold) return resolve();
+      } else {
+        post.set('uShutter', from + (to - from) * ease(t / dur));
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+
+  const shutterClose = () => sweep(0, 1, CLOSE, HOLD);
+  const shutterOpen  = () => sweep(1, 0, OPEN, 0);
+
   return {
     THREE, scene, camera, renderer, post, audio, player, vo, chapter, highlight,
     get isTouch() { return !!touch?.enabled; },
@@ -414,11 +442,17 @@ function makeCtx(chapter, token) {
       check();
     }),
 
-    /** The Cut. One frame of bone white; look-direction is preserved. */
+    /** The Cut. A leaf shutter closes to bone and opens on the new body;
+     *  look-direction is preserved across it.
+     *
+     *  Resolves at full closure, not at the end of the sweep, so the chapter
+     *  gets to move the player while the frame is covered — the blades then
+     *  open on a point of view that is already in motion, which is the whole
+     *  point of the Cut. The opening is deliberately not awaited. */
     cut: async () => {
       audio.shutter();
-      vo.flash(0.06);
-      await sleep(0.14);
+      await shutterClose();
+      shutterOpen();
     },
 
     fade: (to, dur = 2) => new Promise((resolve) => {

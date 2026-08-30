@@ -290,11 +290,22 @@ The game has **four systems and no others.** Each is fully implemented and each 
 
 The book's `…` glyph, made physical. It is how the game changes bodies.
 
-1. One frame of pure **bone white**, full-screen, no fade.
-2. A large-format camera shutter, slowed 30%, pitched low, with a wet click in it.
-3. **The new POV is already in motion.** Never cut to a static frame.
+1. A large-format **leaf shutter closes to bone**: six curved blades sweeping in and rotating as
+   they go, an ember line along the leading edge, held closed on a full bone frame, then opening
+   again — 0.17 s in, 0.10 s held, 0.30 s out.
+2. The same shutter in audio, slowed 30%, pitched low, with a wet click in it.
+3. **The new POV is already in motion**, and the body is moved while the frame is covered, so the
+   blades open on it. Never cut to a static frame.
 4. **Look-direction is preserved across the cut.** This is what sells two bodies as one nervous
    system, and it is the cheapest, best idea in the design.
+
+**Revised from "one frame of pure bone white".** That was a film-editing note and it was built
+literally, as a DOM flash with a hardcoded 16 ms hop. A frame is not a duration: 16 ms at 60 Hz,
+8 ms on a 120 Hz phone, 33 ms on a slow one, and nothing at all on the frame that gets dropped. The
+game's single most important story beat cannot be the one thing whose legibility depends on the
+player's refresh rate. **Every authored beat is timed in seconds.** The bone is still there — it is
+what the blades are made of — it is now held long enough to land on any device, and the closure
+gives the Cut a shape, which one frame of white never could.
 
 Cuts are authored in Ch. 01–02, **player-triggered for the first time in Ch. 03** (by swallowing a
 pebble), required in Ch. 05, absent entirely from Ch. 06, and final in Ch. 07.

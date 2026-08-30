@@ -216,7 +216,8 @@ input[type=range]::-moz-range-thumb{
 }
 #hint.in{opacity:1}
 
-/* the Cut — one frame of bone white */
+/* full-frame bone flash — the knocks in ch01/03 use it. The Cut itself is
+   a leaf shutter drawn in the post chain, not here. */
 #flash{position:absolute;inset:0;background:var(--bone);opacity:0;pointer-events:none}
 
 #scene{position:fixed;inset:0;width:100%;height:100%;z-index:1}

@@ -65,6 +65,7 @@ const RisoShader = {
     uCollars:     { value: new THREE.Vector3(0, 0, 0) },  // ch01: collar errors
     uCollarActive:{ value: 0.0 },   // which one your hands are on
     uCollarShow:  { value: 0.0 },   // the engraved scale, 0 until the collars
+    uShutter:     { value: 0.0 },   // the Cut: 0 open, 1 closed on bone
 
     cMoor:   { value: RAW.moor },
     cPetrol: { value: RAW.petrol },
@@ -104,6 +105,7 @@ const RisoShader = {
     uniform vec3  uCollars;
     uniform float uCollarActive;
     uniform float uCollarShow;
+    uniform float uShutter;
     uniform vec3  cMoor, cPetrol, cCyan, cBone, cEmber, cAsh;
 
     const float PI  = 3.14159265;
@@ -273,6 +275,31 @@ const RisoShader = {
       // ── fades ─────────────────────────────────────────────────
       col = mix(col, vec3(0.0), uFade);
       col = mix(col, cBone,     uWhiteFade);
+
+      // ── the Cut ───────────────────────────────────────────────
+      // A large-format leaf shutter: six curved blades sweeping in, rotating
+      // as they close, bone on the face and an ember line along the leading
+      // edge where it catches the light. Last thing in the chain, so neither
+      // the vignette nor a fade can dim it.
+      //
+      // This replaces a single white frame. A frame is 16ms at 60Hz, 8ms on a
+      // 120Hz phone and 33ms on a slow one, and it is the first thing a
+      // dropped frame eats — you cannot time the game's most important story
+      // beat in frames. The closure is driven in seconds from main.js.
+      if (uShutter > 0.0001){
+        vec2 se = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+        float sr = length(se);
+        float sa = atan(se.y, se.x) + uShutter * 0.55;      // the blades rotate in
+        float sector = TAU / 6.0;
+        float th = mod(sa + sector * 0.5, sector) - sector * 0.5;
+        float m  = sr * mix(1.0, cos(th), 0.72);            // blades are curved
+        float ap = mix(1.25, 0.0, uShutter);                // 1.25 clears the corners
+        float edge = 0.010 + 0.022 * (1.0 - uShutter);
+        float blade = smoothstep(ap - edge, ap + edge, m);
+        float rim = exp(-pow((m - ap) / max(edge, 1e-4), 2.0));
+        col = mix(col, cBone, blade);
+        col += cEmber * rim * (1.0 - uShutter) * 0.45;
+      }
 
       gl_FragColor = vec4(col, 1.0);
     }
