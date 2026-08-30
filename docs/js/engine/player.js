@@ -119,7 +119,7 @@ export class Player {
     // ── look, from touch ────────────────────────────────────────
     if (this.touch?.enabled) {
       const d = this.touch.takeLook();
-      if (d.x || d.y) this._look(d.x, d.y, 0.0030 * this.s.touchSensitivity);
+      if (d.x || d.y) this._look(d.x, d.y, 0.0052 * this.s.touchSensitivity);
     }
 
     // ── move ────────────────────────────────────────────────────
@@ -149,7 +149,9 @@ export class Player {
 
     if (mag > 0.001) {
       const f = this.forward;
-      const r = new THREE.Vector3(f.z, 0, -f.x);
+      // right = forward x up. Facing +Z with +Y up, that is -X — the obvious
+      // (f.z, 0, -f.x) is the LEFT vector and mirrors both D and the stick.
+      const r = new THREE.Vector3(-f.z, 0, f.x);
       const dir = new THREE.Vector3()
         .addScaledVector(f, iz / (mag || 1))
         .addScaledVector(r, ix / (mag || 1))

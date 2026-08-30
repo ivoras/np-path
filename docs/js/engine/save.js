@@ -24,8 +24,8 @@ const DEFAULTS = {
     // the print stack — some people cannot tolerate heavy grain
     printEffects: 1.0,  // 0 – 1.4, scales grain + misregistration
 
-    // audio
-    volume: 0.9,
+    // audio — the game is mostly drone and wind, and it sat too hot at 0.9
+    volume: 0.45,
     muted: false,
 
     // presentation
@@ -59,6 +59,10 @@ class Save {
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw);
+      // The default volume dropped from 0.9 to 0.45. A save still sitting on
+      // the old default never had the slider touched, so move it; a value the
+      // player actually chose is left alone.
+      if (parsed?.settings && parsed.settings.volume === 0.9) parsed.settings.volume = 0.45;
       if (parsed && parsed.version === DEFAULTS.version) {
         this.data = {
           ...clone(DEFAULTS),

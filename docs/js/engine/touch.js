@@ -8,8 +8,15 @@
 // hold a specific partial deflection for thirty-two paces, and chapter 06's
 // line quality depends on gait, so a four-way d-pad would break two of the
 // seven puzzles.
+//
+// Built on Pointer Events with pointer capture rather than raw Touch Events.
+// Touch Events deliver to whatever element the gesture started on and quietly
+// stop if that target changes or the browser decides the drag was a scroll —
+// which is exactly how a look-drag or a vertical walk-drag goes dead on a real
+// phone while a horizontal one keeps working. Capturing the pointer pins every
+// move to this surface until release, whatever else happens on the page.
 
-const STICK_RADIUS = 62;      // px, at which deflection reads as 1.0
+const STICK_RADIUS = 62;      // px of travel that reads as full deflection
 const DEAD_ZONE = 0.10;
 
 export class TouchControls {
@@ -29,6 +36,7 @@ export class TouchControls {
     this.moveId = null;
     this.lookId = null;
     this.origin = { x: 0, y: 0 };
+    this.lookLast = { x: 0, y: 0 };
 
     this._build();
     this._bind();
@@ -67,88 +75,88 @@ export class TouchControls {
 
   _bind() {
     const surface = this.wrap;
-
-    // The act button and the pause button swallow their own touches so a
-    // thumb resting on them never also steers the camera.
     const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
 
-    this.act.addEventListener('touchstart', (e) => {
+    // The two buttons swallow their own pointers, so a thumb resting on one
+    // never also steers the camera.
+    this.act.addEventListener('pointerdown', (e) => {
       stop(e);
+      this.act.setPointerCapture?.(e.pointerId);
       if (!this.actHeld) this.actPressed = true;
       this.actHeld = true;
       this.act.classList.add('down');
-    }, { passive: false });
-    const release = (e) => {
+    });
+    const releaseAct = (e) => {
       stop(e);
       this.actHeld = false;
       this.act.classList.remove('down');
     };
-    this.act.addEventListener('touchend', release, { passive: false });
-    this.act.addEventListener('touchcancel', release, { passive: false });
+    this.act.addEventListener('pointerup', releaseAct);
+    this.act.addEventListener('pointercancel', releaseAct);
 
-    this.pause.addEventListener('touchstart', (e) => {
-      stop(e);
-      this.onPause?.();
-    }, { passive: false });
+    this.pause.addEventListener('pointerdown', (e) => { stop(e); this.onPause?.(); });
 
-    surface.addEventListener('touchstart', (e) => {
+    surface.addEventListener('pointerdown', (e) => {
       if (!this.enabled) return;
       e.preventDefault();
-      for (const t of e.changedTouches) {
-        if (this._isMoveSide(t.clientX)) {
-          if (this.moveId !== null) continue;
-          this.moveId = t.identifier;
-          this.origin.x = t.clientX;
-          this.origin.y = t.clientY;
-          this._showStick(t.clientX, t.clientY);
-        } else {
-          if (this.lookId !== null) continue;
-          this.lookId = t.identifier;
-          this.lookLast = { x: t.clientX, y: t.clientY };
-        }
+      // Pin this pointer to the surface for the life of the gesture.
+      try { surface.setPointerCapture(e.pointerId); } catch { /* older browsers */ }
+
+      if (this._isMoveSide(e.clientX)) {
+        if (this.moveId !== null) return;
+        this.moveId = e.pointerId;
+        this.origin.x = e.clientX;
+        this.origin.y = e.clientY;
+        this._showStick(e.clientX, e.clientY);
+      } else {
+        if (this.lookId !== null) return;
+        this.lookId = e.pointerId;
+        this.lookLast.x = e.clientX;
+        this.lookLast.y = e.clientY;
       }
       this._fadeHints();
-    }, { passive: false });
+    });
 
-    surface.addEventListener('touchmove', (e) => {
+    surface.addEventListener('pointermove', (e) => {
       if (!this.enabled) return;
-      e.preventDefault();
-      for (const t of e.changedTouches) {
-        if (t.identifier === this.moveId) {
-          const dx = t.clientX - this.origin.x;
-          const dy = t.clientY - this.origin.y;
-          const d = Math.hypot(dx, dy);
-          const clamped = Math.min(d, STICK_RADIUS);
-          const nx = d > 0 ? dx / d : 0;
-          const ny = d > 0 ? dy / d : 0;
-          let mag = clamped / STICK_RADIUS;
-          mag = mag < DEAD_ZONE ? 0 : (mag - DEAD_ZONE) / (1 - DEAD_ZONE);
-          this.moveX = nx * mag;
-          this.moveY = -ny * mag;              // screen-down is backwards
-          this.stickKnob.style.transform =
-            `translate(${this.origin.x + nx * clamped}px, ${this.origin.y + ny * clamped}px) translate(-50%,-50%)`;
-        } else if (t.identifier === this.lookId) {
-          this.lookDX += t.clientX - this.lookLast.x;
-          this.lookDY += t.clientY - this.lookLast.y;
-          this.lookLast = { x: t.clientX, y: t.clientY };
-        }
+
+      if (e.pointerId === this.moveId) {
+        e.preventDefault();
+        const dx = e.clientX - this.origin.x;
+        const dy = e.clientY - this.origin.y;
+        const d = Math.hypot(dx, dy);
+        const clamped = Math.min(d, STICK_RADIUS);
+        const nx = d > 0 ? dx / d : 0;
+        const ny = d > 0 ? dy / d : 0;
+        let mag = clamped / STICK_RADIUS;
+        mag = mag < DEAD_ZONE ? 0 : (mag - DEAD_ZONE) / (1 - DEAD_ZONE);
+        this.moveX = nx * mag;
+        this.moveY = -ny * mag;              // screen-down is backwards
+        this.stickKnob.style.transform =
+          `translate(${this.origin.x + nx * clamped}px, ${this.origin.y + ny * clamped}px) translate(-50%,-50%)`;
+      } else if (e.pointerId === this.lookId) {
+        e.preventDefault();
+        this.lookDX += e.clientX - this.lookLast.x;
+        this.lookDY += e.clientY - this.lookLast.y;
+        this.lookLast.x = e.clientX;
+        this.lookLast.y = e.clientY;
       }
-    }, { passive: false });
+    });
 
     const end = (e) => {
-      if (!this.enabled) return;
-      for (const t of e.changedTouches) {
-        if (t.identifier === this.moveId) {
-          this.moveId = null;
-          this.moveX = this.moveY = 0;
-          this._hideStick();
-        } else if (t.identifier === this.lookId) {
-          this.lookId = null;
-        }
+      if (e.pointerId === this.moveId) {
+        this.moveId = null;
+        this.moveX = this.moveY = 0;
+        this._hideStick();
+      } else if (e.pointerId === this.lookId) {
+        this.lookId = null;
       }
     };
-    surface.addEventListener('touchend', end, { passive: false });
-    surface.addEventListener('touchcancel', end, { passive: false });
+    surface.addEventListener('pointerup', end);
+    surface.addEventListener('pointercancel', end);
+    // If capture is lost for any reason, drop the gesture rather than leaving
+    // the player walking forever.
+    surface.addEventListener('lostpointercapture', end);
   }
 
   _isMoveSide(x) {
@@ -178,6 +186,7 @@ export class TouchControls {
   }
 
   show() { this.wrap.hidden = false; this.enabled = true; }
+
   hide() {
     this.wrap.hidden = true;
     this.enabled = false;
@@ -185,6 +194,7 @@ export class TouchControls {
     this.lookDX = this.lookDY = 0;
     this.actHeld = this.actPressed = false;
     this.moveId = this.lookId = null;
+    this.act.classList.remove('down');
     this._hideStick();
   }
 
@@ -203,5 +213,5 @@ export function isTouchDevice(settings) {
   if (settings?.forceTouch) return true;
   const coarse = matchMedia('(pointer: coarse)').matches;
   const noHover = matchMedia('(hover: none)').matches;
-  return (coarse && noHover) || navigator.maxTouchPoints > 1 && coarse;
+  return (coarse && noHover) || (navigator.maxTouchPoints > 1 && coarse);
 }
