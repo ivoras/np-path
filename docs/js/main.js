@@ -271,6 +271,7 @@ async function boot() {
 
   clock = new THREE.Clock();
   running = true;
+  if (location.search.includes('debug=1')) window.__T = { player, post, get u(){return post.u} };
 
   addEventListener('resize', onResize);
   addEventListener('orientationchange', () => setTimeout(onResize, 250));
