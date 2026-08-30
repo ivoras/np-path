@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>THE PATH</title>
+<meta name="description" content="A walking simulator adapted from THE PATH by TLLOA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Archivo+Black&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── gate ─────────────────────────────────────────────────────── -->
+<div id="gate" class="layer">
+  <div class="gate-inner">
+    <div class="gate-mark">TLLOA</div>
+    <h1 class="gate-title">THE PATH</h1>
+    <p class="gate-sub">…</p>
+    <form id="gate-form" autocomplete="off">
+      <input id="gate-input" type="password" placeholder="" aria-label="password" spellcheck="false" autocomplete="off">
+      <button type="submit" id="gate-go">enter</button>
+    </form>
+    <p id="gate-err" class="gate-err">&nbsp;</p>
+  </div>
+</div>
+
+<!-- ── title ────────────────────────────────────────────────────── -->
+<div id="title" class="layer hidden">
+  <canvas id="cover"></canvas>
+  <div class="title-inner">
+    <div class="t-mark">TLLOA</div>
+    <h1 class="t-title">THE PATH</h1>
+    <button id="begin">begin</button>
+    <div class="t-note">
+      <p>mouse to look &middot; <b>W A S D</b> to walk &middot; <b>E</b> or click to act &middot; <b>Esc</b> to release the cursor</p>
+      <p class="t-warn">Headphones recommended. Contains sustained low frequencies, long silences, and one deliberate ninety&#8209;second stillness.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── game ─────────────────────────────────────────────────────── -->
+<canvas id="scene"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="vo"></div>
+  <div id="card" class="hidden"></div>
+  <div id="chapter-title" class="hidden"></div>
+  <div id="hint"></div>
+  <div id="flash"></div>
+</div>
+
+<div id="loading" class="layer hidden"><span>…</span></div>
+
+<noscript>
+  <div class="layer"><div class="gate-inner"><h1 class="gate-title">THE PATH</h1>
+  <p class="gate-sub">This requires JavaScript.</p></div></div>
+</noscript>
+
+<!-- three.js is vendored locally: no CDN dependency, works offline, and the
+     page cannot break because someone else's host went down. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./js/vendor/three.module.js",
+    "three/addons/": "./js/vendor/"
+  }
+}
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

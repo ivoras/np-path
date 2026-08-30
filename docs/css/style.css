@@ -1,0 +1,148 @@
+/* THE PATH — book typography, riso palette */
+
+:root{
+  --moor:#0B1614;
+  --petrol:#16332F;
+  --cyan:#3E6E70;
+  --bone:#EDE2C2;
+  --ember:#E0762A;
+  --ash:#2A2A22;
+  --serif:"EB Garamond",Garamond,"Adobe Garamond Pro",Georgia,serif;
+  --heavy:"Archivo Black","Helvetica Neue",Impact,sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--moor);overflow:hidden}
+body{font-family:var(--serif);color:var(--bone);-webkit-font-smoothing:antialiased}
+canvas{display:block}
+.hidden{display:none !important}
+
+/* ── layers ──────────────────────────────────────────────────── */
+.layer{
+  position:fixed;inset:0;z-index:40;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bone);
+}
+#loading{background:var(--moor);color:var(--bone);font-size:2rem;letter-spacing:.4em}
+
+/* ── gate ────────────────────────────────────────────────────── */
+#gate{background:var(--bone);color:#1a1a1a}
+.gate-inner{text-align:left;max-width:24rem;width:100%;padding:2rem;
+  animation:rise 1.6s cubic-bezier(.2,.7,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.gate-mark{font-family:var(--heavy);font-size:.72rem;letter-spacing:.34em;color:#1a1a1a;margin-bottom:.35rem}
+.gate-title{font-family:var(--heavy);font-size:clamp(2.4rem,9vw,3.6rem);line-height:.95;
+  margin:0 0 1.6rem;letter-spacing:.01em;color:#1a1a1a}
+.gate-sub{font-size:1.5rem;color:#777;margin:0 0 2.2rem;letter-spacing:.2em}
+
+#gate-form{display:flex;gap:.5rem;border-bottom:1px solid #1a1a1a;padding-bottom:.5rem}
+#gate-input{
+  flex:1;background:none;border:0;outline:none;
+  font-family:var(--serif);font-size:1.25rem;color:#1a1a1a;letter-spacing:.3em;
+}
+#gate-input::placeholder{color:#bbb}
+#gate-go{
+  background:none;border:0;cursor:pointer;color:#1a1a1a;
+  font-family:var(--serif);font-size:1.05rem;font-style:italic;opacity:.55;
+  transition:opacity .3s;
+}
+#gate-go:hover{opacity:1}
+.gate-err{font-style:italic;color:#a33;min-height:1.4em;margin:.9rem 0 0;font-size:.95rem;
+  opacity:0;transition:opacity .4s}
+.gate-err.show{opacity:1}
+#gate.wrong .gate-inner{animation:shake .4s}
+@keyframes shake{
+  0%,100%{transform:none} 20%{transform:translateX(-7px)}
+  45%{transform:translateX(6px)} 70%{transform:translateX(-3px)}
+}
+
+/* ── title ───────────────────────────────────────────────────── */
+#title{background:var(--moor);overflow:hidden}
+#cover{position:absolute;inset:0;width:100%;height:100%}
+.title-inner{position:relative;z-index:2;text-align:center;padding:2rem;
+  display:flex;flex-direction:column;align-items:center;
+  animation:rise 2.4s cubic-bezier(.2,.7,.3,1) both}
+.t-mark{font-family:var(--heavy);font-size:.8rem;letter-spacing:.42em;color:var(--bone);
+  opacity:.85;margin-bottom:.4rem;text-shadow:0 2px 18px rgba(0,0,0,.9)}
+.t-title{font-family:var(--heavy);font-size:clamp(3rem,12vw,6rem);line-height:.9;margin:0 0 2.6rem;
+  color:var(--bone);text-shadow:0 4px 40px rgba(0,0,0,.95)}
+#begin{
+  background:none;border:1px solid rgba(237,226,194,.4);color:var(--bone);
+  font-family:var(--serif);font-size:1.15rem;font-style:italic;
+  padding:.55rem 2.6rem;cursor:pointer;letter-spacing:.14em;
+  transition:background .5s,border-color .5s;backdrop-filter:blur(2px)
+}
+#begin:hover{background:rgba(237,226,194,.1);border-color:var(--bone)}
+.t-note{margin-top:2.6rem;font-size:.86rem;color:rgba(237,226,194,.5);line-height:1.9;max-width:34rem}
+.t-note b{font-weight:500;color:rgba(237,226,194,.8)}
+.t-warn{margin-top:.5rem;font-style:italic;opacity:.7}
+
+/* ── hud ─────────────────────────────────────────────────────── */
+#hud{position:fixed;inset:0;z-index:20;pointer-events:none}
+
+/* voice-over: set exactly like the book page — low, left, ragged right */
+#vo{
+  position:absolute;left:clamp(1.6rem,7vw,7rem);bottom:clamp(2.2rem,11vh,7rem);
+  max-width:min(30rem,62vw);
+  font-size:clamp(1.05rem,1.65vw,1.42rem);line-height:1.62;
+  color:var(--bone);text-shadow:0 2px 26px rgba(0,0,0,.95),0 0 60px rgba(0,0,0,.7);
+}
+#vo .ln{opacity:0;transform:translateY(6px);transition:opacity 2.6s ease,transform 2.6s ease;
+  margin:0 0 .28em}
+#vo .ln.in{opacity:1;transform:none}
+#vo .ln.out{opacity:0;transition:opacity 3.4s ease}
+#vo .ln.merged{font-style:italic;letter-spacing:.02em}
+#vo .ln.watcher{color:#DCD3B6}
+
+/* coda / chapter cards */
+#card{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:flex-end;align-items:flex-start;
+  padding:0 0 clamp(3rem,14vh,9rem) clamp(1.6rem,7vw,7rem);
+  background:var(--moor);z-index:25;
+}
+#card .cl{
+  font-size:clamp(1.3rem,2.4vw,2rem);line-height:1.5;opacity:0;
+  transition:opacity 2s ease;color:var(--bone);
+}
+#card .cl.in{opacity:1}
+#card .cl.big{font-size:clamp(1.6rem,3vw,2.5rem)}
+#card.invert{background:var(--bone)}
+#card.invert .cl{color:var(--moor)}
+
+#chapter-title{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--moor);z-index:26;
+  font-family:var(--heavy);font-size:clamp(1.6rem,5vw,3rem);letter-spacing:.22em;
+  color:var(--bone);opacity:0;transition:opacity 1.8s ease
+}
+#chapter-title.in{opacity:1}
+
+/* diegetic hint line — italic, low-contrast, never a prompt box */
+#hint{
+  position:absolute;left:0;right:0;bottom:clamp(1rem,4vh,2.4rem);
+  text-align:center;font-style:italic;font-size:.98rem;
+  color:rgba(237,226,194,.34);opacity:0;transition:opacity 1.4s ease;
+  text-shadow:0 2px 20px rgba(0,0,0,.9)
+}
+#hint.in{opacity:1}
+
+/* the Cut — one frame of bone white */
+#flash{position:absolute;inset:0;background:var(--bone);opacity:0;pointer-events:none}
+
+#scene{position:fixed;inset:0;width:100%;height:100%;z-index:1}
+
+/* ── credits ─────────────────────────────────────────────────── */
+#credits{
+  position:fixed;inset:0;z-index:45;background:var(--moor);color:var(--bone);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  text-align:center;gap:.6rem;font-size:1.05rem;line-height:2;
+}
+#credits .cr-title{font-family:var(--heavy);font-size:2.2rem;letter-spacing:.18em;margin-bottom:.4rem}
+#credits .cr-mark{font-family:var(--heavy);font-size:.78rem;letter-spacing:.4em;opacity:.7}
+#credits .cr-line{opacity:.55;font-style:italic}
+
+@media (max-width:640px){
+  #vo{max-width:80vw;left:1.4rem;bottom:2.4rem}
+}
