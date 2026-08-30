@@ -262,6 +262,13 @@ Every chapter file references this. It is the game's signature and it is applied
 3. **Paper tooth** — a 1:1 grain plate multiplied over the frame, **screen-locked, not
    world-locked**. It sits on the glass in front of the world. Coarsens with altitude in Ch. 02.
    **Ch. 06 world-locks it to the floor** — the only exception, and the point of the whole game.
+
+   **It boils at 12 Hz.** This reverses the original spec, which called for a static plate. In a
+   still frame a static grain reads as print; in a *moving* one it reads as dirt on the screen —
+   and worse, it hands the eye a fixed reference frame that says nothing is moving, which flattens
+   the sense of walking forward. 12 Hz is the rate hand-printed and photochemical grain actually
+   moves at: fast enough to stop being a smudge, slow enough to stay print rather than television
+   snow. Playtest feedback, and the doc was wrong.
 4. **Vignette** — hard-ish ash-olive printed border. Absent only in Ch. 06. Heaviest in Ch. 07,
    closing to ~18% of frame width by the credits.
 5. **Ink-bleed bloom** — from bone and ember only, never from petrol.

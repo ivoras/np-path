@@ -42,6 +42,10 @@ Rough beat map:
 
 ### Level-design rules for this chapter
 
+- **The path carries loose grit and scattered stones.** Not decoration: a bare ribbon under a
+  distant horizon gives the eye almost no optic flow, and walking on it reads as standing still.
+  Surface detail streaming under the feet, and dark stones sweeping past close to the camera, are
+  what make forward motion legible. Every chapter's path gets them.
 - **The player can never step off the path in beat 1.** Not with an invisible wall — with water.
   The moor either side is flooded to a depth that reads as *drowning*, and the character will not
   enter it. This teaches the game's only rule: the path is the world.

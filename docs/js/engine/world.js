@@ -149,16 +149,47 @@ export function makeTerrain(fn, {
  * A bone ribbon with ember verges. The rim-light on the verges is what makes
  * the cover image read, and it is the game's signature composition.
  */
+/**
+ * Aggregate for the path surface — bone with a fine darker grit in it.
+ *
+ * Without this the ribbon is a flat untextured plane, and walking along it
+ * produces almost no optic flow: the horizon does not change, the ribbon does
+ * not change, and forward motion reads as standing still. Surface detail
+ * streaming under the feet is the cheapest and strongest cue there is.
+ */
+function pathAggregate() {
+  const S = 256;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#EDE2C2';
+  g.fillRect(0, 0, S, S);
+  const rng = mulberry(4242);
+  for (let i = 0; i < 2600; i++) {
+    // low contrast: the path must still read as the brightest thing in the
+    // world, so this is texture, not pattern
+    g.fillStyle = rng() > 0.72 ? 'rgba(11,22,20,.16)' : 'rgba(11,22,20,.07)';
+    const x = rng() * S, y = rng() * S, w = 0.8 + rng() * 2.4;
+    g.fillRect(x, y, w, w * (0.5 + rng()));
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 export function makePath(groundFn, {
   length = 400, width = 2.7, from = -200, curve = null, verge = true,
+  grit = true, tile = 2.0,          // metres of path per texture repeat
 } = {}) {
   const group = new THREE.Group();
   const steps = 260;
   const centre = (t) => (curve ? curve(t) : 0);
 
-  const build = (w, y, mat) => {
+  const build = (w, y, mat, uv = false) => {
     const geo = new THREE.BufferGeometry();
-    const verts = [], idx = [];
+    const verts = [], idx = [], uvs = [];
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const z = from + t * length;
@@ -171,6 +202,9 @@ export function makePath(groundFn, {
       ) + y;
       for (const s of [-1, 1]) {
         verts.push(cx + s * w * 0.5, yTop, z);
+        // v carries the tiling, so the repeat is fixed in metres and does not
+        // stretch when a chapter uses a different path length
+        if (uv) uvs.push(s < 0 ? 0 : 1, (z - from) / tile);
       }
       if (i < steps) {
         // wound so the ribbon faces +Y — the obvious order faces it at the
@@ -180,6 +214,7 @@ export function makePath(groundFn, {
       }
     }
     geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    if (uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, mat);
@@ -195,8 +230,41 @@ export function makePath(groundFn, {
     color: C.bone,
     emissive: new THREE.Color(C.bone).multiplyScalar(0.55),
     flatShading: false,
+    map: grit ? pathAggregate() : null,
   });
-  group.add(build(width, 0.09, boneMat));
+  group.add(build(width, 0.09, boneMat, grit));
+
+  // ── near-field parallax ──────────────────────────────────────
+  // Loose stones lying ON the path, dark against bone. They pass within a
+  // metre of the camera, so they sweep by fast while the horizon holds still
+  // — which is what walking actually looks like, and what the bare ribbon was
+  // missing. They must sit above the ribbon's own surface, not on the raw
+  // ground, or the path is drawn over the top of them.
+  if (grit) {
+    const surfaceY = (z) => {
+      const cx = centre(z);
+      return Math.max(
+        groundFn(cx - width * 0.5, z), groundFn(cx, z), groundFn(cx + width * 0.5, z)
+      ) + 0.09;
+    };
+    const n = Math.max(150, Math.round((length / 0.42) * Q.particles));
+    const stones = scatter(
+      new THREE.IcosahedronGeometry(0.05, 0), matte(C.ash), n,
+      (i) => {
+        const r = mulberry(i * 3 + 17);
+        const z = from + (i / n) * length + (r() - 0.5) * 0.5;
+        const cx = centre(z);
+        // mostly on the path, a few spilled onto the verge
+        const across = (r() - 0.5) * 2;
+        const x = cx + across * width * (r() > 0.82 ? 0.78 : 0.46);
+        return { x, z, y: surfaceY(z) + 0.018,
+                 s: 0.45 + r() * 1.0, rx: r() * 3, rz: r() * 3 };
+      }
+    );
+    stones.receiveShadow = true;
+    group.add(stones);
+  }
+
   group.userData.centre = centre;
   group.userData.width = width;
   return group;

@@ -51,7 +51,7 @@ const RisoShader = {
     uMisregDir:   { value: new THREE.Vector2(1.0, 0.35) },
     uPosterize:   { value: 24.0 },  // luminance steps (ch06 drops this to 2)
     uPaletteMix:  { value: 0.85 },
-    uGrain:       { value: 0.09 },
+    uGrain:       { value: 0.062 },
     uGrainScale:  { value: 1.0 },   // coarsens with altitude in ch02
     uVignette:    { value: 0.55 },
     uSmear:       { value: 0.0 },   // the lens smear, 0 until ch01's puzzle
@@ -182,9 +182,18 @@ const RisoShader = {
       // Screen-locked, not world-locked: it sits on the glass in front of
       // the world. (ch06 world-locks it to the floor — done in that scene,
       // not here.)
+      //
+      // It boils at 12 Hz rather than sitting still. A perfectly static
+      // grain over a moving image reads as dirt on the screen, and worse,
+      // it hands the eye a fixed reference frame that says nothing is
+      // moving — which kills the sense of walking forward. 12 Hz is the
+      // rate hand-printed and photochemical grain moves at; fast enough to
+      // stop being a smudge, slow enough to stay print rather than TV snow.
       vec2 gcoord = gl_FragCoord.xy / max(uGrainScale, 0.001);
-      float g  = hash(floor(gcoord));
-      float g2 = hash(floor(gcoord * 0.37) + 31.7);
+      float boil = floor(uTime * 12.0);
+      vec2 jitter = vec2(fract(boil * 0.618) , fract(boil * 0.371)) * 71.3;
+      float g  = hash(floor(gcoord) + jitter);
+      float g2 = hash(floor(gcoord * 0.37) + jitter.yx + 31.7);
       float tooth = (g * 0.72 + g2 * 0.28 - 0.5);
       float grain = uGrain * uPrint;
       col *= 1.0 + tooth * grain * 2.0;
