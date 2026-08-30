@@ -91,15 +91,17 @@ export class Highlight {
       const k = (Math.sin(this.t * h.rate * Math.PI * 2 + h.phase) * 0.5 + 0.5);
       const amt = (0.30 + k * 0.70) * h.power * (visible ? 1 : 0);
 
-      if (h.aura) h.aura.material.opacity = 0.10 + amt * 0.28;
+      // strong enough to survive the palette map in a near-black scene —
+      // a subtle lift just becomes another midtone and reads as nothing
+      if (h.aura) h.aura.material.opacity = 0.22 + amt * 0.55;
 
       h.mats.forEach((m, i) => {
         if (m.emissive) {
-          m.emissive.copy(GOLD).multiplyScalar(amt * 0.55);
+          m.emissive.copy(GOLD).multiplyScalar(amt * 1.25);
           if (h.baseEmissive[i]) m.emissive.add(h.baseEmissive[i]);
         } else if (m.color && h.baseColor[i]) {
           // unlit materials have no emissive; lift the colour instead
-          m.color.copy(h.baseColor[i]).lerp(GOLD, amt * 0.45);
+          m.color.copy(h.baseColor[i]).lerp(GOLD, amt * 0.75);
         }
       });
     }
