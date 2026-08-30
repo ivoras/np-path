@@ -393,6 +393,28 @@ still plateau: a camera drift, a change in the mix, a line of already-heard VO o
 This is the direct answer to *The Shore*'s "no hints at any point" and *Necrophosis*'s over-railing.
 The game guides constantly and never once tells you anything.
 
+### Resolution doctrine
+
+**Revised after playtesting.** Ch. 01 originally specified "no click, no snap, no UI" — pure
+continuous alignment, judged on the *sum* of three collar errors against a single aggregate audio
+cue. On the built game one pixel of mouse travel is 0.0024 collar units, so holding three
+continuous values inside a combined window of 0.10 by ear is luck, not attention. Austerity had
+turned into a coin flip.
+
+So: **a continuous control that must reach a target gets a detent.** Bring a collar inside its
+seat and it drops onto zero and stays there, with a sound. The player is asked to find three
+things, not to hold three things.
+
+This does not reintroduce UI. There is still no meter, no percentage, no tick box. The detent is a
+property of brass, and the per-collar reading the player now gets — the collar in your hands warms
+as it nears its seat — is the same channel the aura already uses. What is still withheld is which
+collar to reach for; the game only answers that after four and a half minutes, and then only by
+naming the worst one.
+
+The general rule this stands for: **the game may be slow, quiet, and unexplained, but every puzzle
+must be closable by a player who is paying attention.** If a solve depends on precision the input
+device cannot express, that is a bug in the puzzle, not a difficulty setting.
+
 ### No fail states
 
 Nothing in this game can kill you, damage you, or end a session. The Ch. 03 knock has no attempt

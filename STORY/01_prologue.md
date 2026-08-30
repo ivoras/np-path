@@ -88,7 +88,10 @@ puzzle: the player is re-registering two print plates.
 - Collar **A** (outer) sets *distance* — pushes the two ghosts nearer or further along the path.
 - Collar **B** (middle) sets *rotation* — twists them against each other.
 - Collar **C** (inner) sets *convergence* — the fine overlap.
-- There is **no click, no snap, no UI**. Feedback is entirely audio-visual: as the ghosts approach
+- Each collar **seats** when it comes close enough — it drops onto zero with a sound of brass
+  finding its bed, and holds there. (See *Resolution doctrine* in the bible: the original "no
+  click, no snap" rule made the solve a coin flip.) There is still no meter and no UI. The collar
+  under your hands warms as it nears its seat; the rest is audio-visual: as the ghosts approach
   registration, the wind on the soundtrack thins and a low sub-bass swell rises. Perfect
   registration is a **silence**.
 

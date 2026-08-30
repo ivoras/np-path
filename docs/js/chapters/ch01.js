@@ -372,6 +372,7 @@ export default {
     post.set('uMisreg', 2.2);
     this.lensState.solved = false;
     this.lensState.collars = [0.3, -0.22, 0.18];
+    this.lensState.seated = [false, false, false];
     this.eyepieceIn = false;
     await wait(1.6);
 
@@ -541,11 +542,30 @@ export default {
         L.collars[L.active] = clamp(L.collars[L.active] - dx * 1.15, -1.4, 1.4);
         this.collars[L.active].rotation.z += dx * 2.2;
 
+        // A brass collar seats. Without a detent the solve asks the player to
+        // hold three continuous values inside a combined 0.10 window using one
+        // aggregate audio cue — 1px of mouse is 0.0024 units, so that is luck,
+        // not attention. Inside the detent the collar drops onto its seat and
+        // stays there, and the player hears it.
+        L.seated = L.seated || [false, false, false];
+        L.collars.forEach((v, i) => {
+          if (!L.seated[i] && Math.abs(v) < 0.05) {
+            L.seated[i] = true;
+            L.collars[i] = 0;
+            audio.stoneSet();
+            ctx.vo.hint(`collar ${i + 1} seats`, 2.2);
+          } else if (L.seated[i] && Math.abs(v) > 0.14) {
+            L.seated[i] = false;             // turned back off its seat
+          }
+        });
+
         // Which collar your hands are on is mechanism state, not a solution
-        // hint — the player has to be able to tell the three apart.
+        // hint. Its brightness is the per-collar feedback the aggregate tone
+        // cannot give: warmer as that collar nears its seat.
         this.collars.forEach((c, i) => {
-          c.material.emissive = new THREE.Color(C.ember)
-            .multiplyScalar(i === L.active ? 0.55 : 0.0);
+          const near = 1 - Math.min(1, Math.abs(L.collars[i]) / 1.4);
+          c.material.emissive = new THREE.Color(C.ember).multiplyScalar(
+            i === L.active ? 0.18 + near * 0.75 : (L.seated[i] ? 0.16 : 0.0));
         });
 
         const err = L.collars.reduce((a, v) => a + Math.abs(v), 0);
@@ -553,9 +573,9 @@ export default {
         // the puzzle drives the game's own misregistration
         post.set('uMisreg', 1.0 + err * 9);
 
-        // no click, no snap, no UI. As the plates approach registration the
-        // wind thins and a sub-bass swell rises. Perfect registration is a
-        // silence.
+        // No meter, no UI. Each collar seats (above); short of that the wind
+        // thins and a sub-bass swell rises as the plates approach
+        // registration. Perfect registration is a silence.
         audio.setWind(0.7 * clamp(err, 0.06, 1), 0.75, 0.4);
         audio.setSub(clamp(1 - err, 0, 1) * 0.8, 0.4);
 
@@ -577,8 +597,8 @@ export default {
         // and after four and a half minutes, name the worst collar. The
         // player still has to turn it; the audio alone reports total error,
         // so without this there is no way to tell which of three is at fault.
-        if (L.total > 270 && !L._named) {
-          L._named = true;
+        if (L.total > (L._nameAt ?? 270)) {
+          L._nameAt = L.total + 120;         // and again, on the current worst
           let worst = 0;
           L.collars.forEach((v, i) => { if (Math.abs(v) > Math.abs(L.collars[worst])) worst = i; });
           ctx.vo.hint(`collar ${worst + 1} is furthest out`, 6);
