@@ -12,16 +12,37 @@ page with the memory removed.
 
 ## Play
 
-The game is a static site in [`docs/`](docs/). Serve it over HTTP — ES modules will not load
-from `file://`:
+The game is a static site in [`docs/`](docs/) — **that is the directory to publish**. There is
+no `dist/` and there shouldn't be: the game is authored as plain ES modules behind an importmap
+with no build step, and three.js is vendored into `docs/js/vendor/`, so `docs/` *is* the built
+artifact. Serve it over HTTP — ES modules will not load from `file://`:
 
 ```sh
 cd docs && python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
-Mouse to look, **W A S D** to walk, **E** or click to act, **Esc** to release the cursor,
-**M** to mute. Headphones recommended. `?ch=4` starts at a given chapter.
+**Desktop** — mouse to look, **W A S D** to walk, **E**/click to act, **Esc** for the menu,
+**M** to mute. Headphones recommended.
+
+**Phone** — a virtual controller appears automatically on touch devices: left thumb walks
+(a floating analog stick), right thumb looks, one button acts, one pauses. Landscape is much
+better than portrait, and the game says so. The stick is genuinely analog because two of the
+seven puzzles read partial deflection — chapter 04 asks you to hold a specific gait for
+thirty-two paces, and chapter 06's line quality depends on how slowly you walk — so a d-pad
+would break both.
+
+**Menu** — New · Continue · Start From… · Settings · About. *Continue* resumes at the furthest
+chapter reached; *Start From…* lists the chapters you have actually finished. Progress lives in
+`localStorage`, per browser. **Esc** or the on-screen button pauses mid-chapter.
+
+**Settings** — look sensitivity, invert horizontal, invert vertical, touch sensitivity,
+left-handed layout, force-touch-controls, head bob, field of view, print-effect strength
+(grain and misregistration), quality tier, text size, volume, mute. Head bob and print effects
+both reach fully *off* deliberately: this game runs two and a half hours, and neither camera
+motion nor heavy static grain suits everyone.
+
+`?ch=4` still jumps straight to a chapter.
 
 > **On the password:** the entry gate is a doorbell, not a lock. The page is static and public,
 > so the check runs on the visitor's own machine and everything it guards is already in their

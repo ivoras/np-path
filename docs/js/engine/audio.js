@@ -62,6 +62,7 @@ export class Audio {
   constructor() {
     this.ready = false;
     this.muted = false;
+    this.volume = 0.9;      // player setting
     this.time = 0;
   }
 
@@ -121,7 +122,7 @@ export class Audio {
   }
 
   // ── master ────────────────────────────────────────────────────
-  fadeIn(t = 3)  { this._ramp(this.master.gain, this.muted ? 0 : 0.9, t); }
+  fadeIn(t = 3)  { this._ramp(this.master.gain, this.muted ? 0 : this.volume, t); }
   fadeOut(t = 2) { this._ramp(this.master.gain, 0, t); }
 
   /**
@@ -131,11 +132,16 @@ export class Audio {
   silence(t = 0.25) {
     this._ramp(this.master.gain, 0, t);
   }
-  unsilence(t = 2) { this._ramp(this.master.gain, this.muted ? 0 : 0.9, t); }
+  unsilence(t = 2) { this._ramp(this.master.gain, this.muted ? 0 : this.volume, t); }
 
   setMuted(m) {
     this.muted = m;
-    if (this.ctx) this._ramp(this.master.gain, m ? 0 : 0.9, 0.3);
+    if (this.ctx) this._ramp(this.master.gain, m ? 0 : this.volume, 0.3);
+  }
+
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.ctx && !this.muted) this._ramp(this.master.gain, this.volume, 0.2);
   }
 
   // ── wind ──────────────────────────────────────────────────────

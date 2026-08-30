@@ -356,7 +356,7 @@ export default {
     ctx.post.set('uSqueeze', 0);
     ctx.post.set('uMisreg', 2);
     ctx.player.canMove = true;
-    ctx.player.fovTarget = 68;
+    ctx.player.fovTarget = ctx.player.settingsFov;
     ctx.audio.grind(0, 1);
   },
 };

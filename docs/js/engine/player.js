@@ -2,6 +2,7 @@
 // looking — so this file is doing most of the interaction design.
 
 import * as THREE from 'three';
+import { save } from './save.js';
 
 const HALF_PI = Math.PI / 2;
 
@@ -9,6 +10,7 @@ export class Player {
   constructor(camera, dom) {
     this.camera = camera;
     this.dom = dom;
+    this.touch = null;               // set by main when a controller exists
 
     this.pos = new THREE.Vector3(0, 0, 0);
     this.vel = new THREE.Vector3();
@@ -42,11 +44,16 @@ export class Player {
     this.bobAmt = 1;
     this.tiltTarget = 0;
     this.tilt = 0;
-    this.fov = 68;
-    this.fovTarget = 68;
+    this.fovTarget = save.settings.fov;
 
+    this.paused = false;
     this._bind();
   }
+
+  get s() { return save.settings; }
+
+  /** The player's chosen FOV — chapters restore to this, not to a literal. */
+  get settingsFov() { return save.settings.fov; }
 
   _bind() {
     const kd = (e) => {
@@ -56,9 +63,14 @@ export class Player {
     const ku = (e) => { this.keys[e.code] = false; };
     window.addEventListener('keydown', kd);
     window.addEventListener('keyup', ku);
+    // a tab-out must not leave a key stuck down
+    window.addEventListener('blur', () => { this.keys = Object.create(null); });
 
     this.dom.addEventListener('click', () => {
-      if (!this.pointerLocked && this.enabled) this.dom.requestPointerLock();
+      if (this.touchMode) return;                 // no pointer lock on a phone
+      if (!this.pointerLocked && this.enabled && !this.paused) {
+        this.dom.requestPointerLock?.();
+      }
     });
 
     document.addEventListener('pointerlockchange', () => {
@@ -66,16 +78,27 @@ export class Player {
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!this.pointerLocked) return;
-      const s = 0.0021;
-      this.yaw   -= e.movementX * s;
-      this.pitch -= e.movementY * s;
-      this.pitch = Math.max(-HALF_PI + 0.05, Math.min(HALF_PI - 0.05, this.pitch));
+      if (!this.pointerLocked || this.paused) return;
+      this._look(e.movementX, e.movementY, 0.0021 * this.s.sensitivity);
     });
+  }
+
+  /** One place where inversion and sensitivity are applied. */
+  _look(dx, dy, scale) {
+    const sx = this.s.invertX ? -1 : 1;
+    const sy = this.s.invertY ? -1 : 1;
+    this.yaw   -= dx * scale * sx;
+    this.pitch -= dy * scale * sy;
+    this.pitch = Math.max(-HALF_PI + 0.05, Math.min(HALF_PI - 0.05, this.pitch));
   }
 
   enable()  { this.enabled = true; }
   disable() { this.enabled = false; if (this.pointerLocked) document.exitPointerLock(); }
+
+  setPaused(p) {
+    this.paused = p;
+    if (p && this.pointerLocked) document.exitPointerLock();
+  }
 
   /** Look-direction is preserved across the Cut — this is what sells two
    *  bodies as one nervous system. Chapters call this instead of resetting. */
@@ -91,6 +114,15 @@ export class Player {
   }
 
   update(dt) {
+    if (this.paused) return;
+
+    // ── look, from touch ────────────────────────────────────────
+    if (this.touch?.enabled) {
+      const d = this.touch.takeLook();
+      if (d.x || d.y) this._look(d.x, d.y, 0.0030 * this.s.touchSensitivity);
+    }
+
+    // ── move ────────────────────────────────────────────────────
     const k = this.keys;
     let ix = 0, iz = 0;
     if (!this.locked && this.canMove && this.enabled) {
@@ -98,6 +130,11 @@ export class Player {
       if (k.KeyS || k.ArrowDown)  iz -= 1;
       if (k.KeyA || k.ArrowLeft)  ix -= 1;
       if (k.KeyD || k.ArrowRight) ix += 1;
+
+      if (this.touch?.enabled) {
+        ix += this.touch.moveX;
+        iz += this.touch.moveY;
+      }
     }
 
     const mag = Math.min(1, Math.hypot(ix, iz));
@@ -156,13 +193,15 @@ export class Player {
     const g = this.groundAt(this.pos.x, this.pos.z);
     this.pos.y += (g - this.pos.y) * Math.min(1, dt * 10);
 
-    // head bob, and the limp: an asymmetric bob, not a speed multiplier
+    // head bob, and the limp: an asymmetric bob, not a speed multiplier.
+    // headBob at 0 is a real accessibility setting, so it must reach zero.
+    const amt = this.bobAmt * this.s.headBob;
     const bobSpeed = travelled / Math.max(this.strideLength, 0.01) * Math.PI * 2;
     this.bob += bobSpeed;
     const limp = this.speedScale < 0.95 ? 1 : 0;
-    const bobY = Math.sin(this.bob) * 0.028 * this.bobAmt
-               - limp * Math.max(0, Math.sin(this.bob)) * 0.026;
-    const bobX = Math.cos(this.bob * 0.5) * 0.019 * this.bobAmt;
+    const bobY = (Math.sin(this.bob) * 0.028
+                 - limp * Math.max(0, Math.sin(this.bob)) * 0.026) * amt;
+    const bobX = Math.cos(this.bob * 0.5) * 0.019 * amt;
 
     this.camera.position.set(
       this.pos.x + bobX * Math.cos(this.yaw),
@@ -171,7 +210,7 @@ export class Player {
     );
 
     // the limp also tilts the head
-    this.tiltTarget = limp * Math.max(0, Math.sin(this.bob)) * 0.026 * this.inputMag;
+    this.tiltTarget = limp * Math.max(0, Math.sin(this.bob)) * 0.026 * this.inputMag * amt;
     this.tilt += (this.tiltTarget - this.tilt) * Math.min(1, dt * 8);
 
     this.camera.rotation.set(0, 0, 0);

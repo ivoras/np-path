@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { noise, Noise } from '../lib/noise.js';
 import { PALETTE } from './post.js';
+import { Q } from './quality.js';
 
 export const C = PALETTE;
 
@@ -90,9 +91,9 @@ export function makeLights(scene, {
   // 1 — the key: twilight, on the path's vanishing point, always ahead
   const key = new THREE.DirectionalLight(keyColor, keyIntensity);
   key.position.copy(keyDir).normalize().multiplyScalar(-160);
-  if (shadows) {
+  if (shadows && Q.shadows) {
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(Q.shadowMap, Q.shadowMap);
     const d = 60;
     key.shadow.camera.left = -d; key.shadow.camera.right = d;
     key.shadow.camera.top = d;   key.shadow.camera.bottom = -d;
@@ -123,7 +124,10 @@ export function makeTerrain(fn, {
   size = 400, segments = 190, material = null, receiveShadow = false,
   centerX = 0, centerZ = 0,
 } = {}) {
-  const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+  // resolution scales with the quality tier — a phone cannot chew through
+  // 58k vertices of per-vertex noise every time a chapter loads
+  const segs = Math.max(24, Math.round(segments * Q.segments));
+  const geo = new THREE.PlaneGeometry(size, size, segs, segs);
   geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position;
   // Sample in WORLD space and carry the same offset on the mesh, so the
@@ -286,6 +290,7 @@ export function makeFigure(seed = 1, { height = 1.82, bone = false } = {}) {
 /** Instanced streaks, recycled around the player. Rain is the bed. */
 export class Rain {
   constructor(scene, count = 2600, { radius = 26, height = 16, speed = 22 } = {}) {
+    count = Math.max(200, Math.round(count * Q.particles));
     const geo = new THREE.PlaneGeometry(0.012, 0.62);
     const mat = new THREE.MeshBasicMaterial({
       color: C.cyan, transparent: true, opacity: 0.42,

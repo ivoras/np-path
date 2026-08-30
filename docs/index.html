@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1614">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>THE PATH</title>
 <meta name="description" content="A walking simulator adapted from THE PATH by TLLOA.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,25 +23,22 @@
     <h1 class="gate-title">THE PATH</h1>
     <p class="gate-sub">…</p>
     <form id="gate-form" autocomplete="off">
-      <input id="gate-input" type="password" placeholder="" aria-label="password" spellcheck="false" autocomplete="off">
+      <input id="gate-input" type="password" placeholder="" aria-label="password"
+             spellcheck="false" autocomplete="off" autocapitalize="off" enterkeyhint="go">
       <button type="submit" id="gate-go">enter</button>
     </form>
     <p id="gate-err" class="gate-err">&nbsp;</p>
   </div>
 </div>
 
-<!-- ── title ────────────────────────────────────────────────────── -->
+<!-- ── title + main menu ────────────────────────────────────────── -->
 <div id="title" class="layer hidden">
   <canvas id="cover"></canvas>
   <div class="title-inner">
     <div class="t-mark">TLLOA</div>
     <h1 class="t-title">THE PATH</h1>
-    <button id="begin">begin</button>
-    <div class="t-note">
-      <p>mouse to look &middot; <b>W A S D</b> to walk &middot; <b>E</b> or click to act &middot; <b>Esc</b> to release the cursor</p>
-      <p class="t-warn">Headphones recommended. Contains sustained low frequencies, long silences, and one deliberate ninety&#8209;second stillness.</p>
-    </div>
   </div>
+  <div id="menu-root"></div>
 </div>
 
 <!-- ── game ─────────────────────────────────────────────────────── -->
@@ -49,6 +50,17 @@
   <div id="chapter-title" class="hidden"></div>
   <div id="hint"></div>
   <div id="flash"></div>
+</div>
+
+<!-- the virtual controller mounts here -->
+<div id="touch-root"></div>
+
+<!-- the pause menu mounts here -->
+<div id="pause-root"></div>
+
+<div id="rotate" class="hidden">
+  <p>Turn the phone sideways.</p>
+  <p class="dim">The path is wider than it is tall.</p>
 </div>
 
 <div id="loading" class="layer hidden"><span>…</span></div>

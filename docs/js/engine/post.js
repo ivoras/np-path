@@ -15,6 +15,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Q } from './quality.js';
 
 const HEX = {
   moor:   '#0B1614',
@@ -59,6 +60,7 @@ const RisoShader = {
     uDesat:       { value: 0.0 },
     uSqueeze:     { value: 0.0 },   // ch05 "Flattened. / Expanded."
     uBitonal:     { value: 0.0 },   // ch06 — two values, nothing between
+    uPrint:       { value: 1.0 },   // player setting: scales grain + misregistration
 
     cMoor:   { value: RAW.moor },
     cPetrol: { value: RAW.petrol },
@@ -93,6 +95,7 @@ const RisoShader = {
     uniform float uDesat;
     uniform float uSqueeze;
     uniform float uBitonal;
+    uniform float uPrint;
     uniform vec3  cMoor, cPetrol, cCyan, cBone, cEmber, cAsh;
     varying vec2 vUv;
 
@@ -128,7 +131,7 @@ const RisoShader = {
       // has stopped.
       vec2 px = 1.0 / uResolution;
       float wander = sin(uTime * 1.2566) * 0.35 + 1.0;      // 0.2 Hz
-      vec2 off = normalize(uMisregDir + 1e-6) * uMisreg * wander * px;
+      vec2 off = normalize(uMisregDir + 1e-6) * uMisreg * uPrint * wander * px;
 
       float emberPlate = texture2D(tDiffuse, uv + off).r;    // warm plate
       vec2  coldPlate  = texture2D(tDiffuse, uv - off).gb;   // cold plate
@@ -183,8 +186,9 @@ const RisoShader = {
       float g  = hash(floor(gcoord));
       float g2 = hash(floor(gcoord * 0.37) + 31.7);
       float tooth = (g * 0.72 + g2 * 0.28 - 0.5);
-      col *= 1.0 + tooth * uGrain * 2.0;
-      col += tooth * uGrain * 0.22;
+      float grain = uGrain * uPrint;
+      col *= 1.0 + tooth * grain * 2.0;
+      col += tooth * grain * 0.22;
 
       // ── printed border ────────────────────────────────────────
       vec2 v = vUv - 0.5;
@@ -240,7 +244,14 @@ export class Post {
   get(name) { return this.u[name] ? this.u[name].value : undefined; }
 
   /** Ink-bleed bloom strength. ch06 turns it off — nothing there glows. */
-  setBloom(strength) { this.bloom.strength = strength; }
+  setBloom(strength) { this.bloom.strength = Q.bloom ? strength : 0; }
+
+  /**
+   * Player setting: scale grain and plate misregistration together.
+   * At 0 the image is clean — heavy static grain is a real problem for some
+   * people, and this game runs for two and a half hours.
+   */
+  setPrintScale(v) { this.u.uPrint.value = v; }
 
   update(dt, elapsed) {
     this.u.uTime.value = elapsed;
@@ -248,7 +259,7 @@ export class Post {
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    const dpr = Math.min(window.devicePixelRatio || 1, Q.dpr);
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h);
     this.composer.setPixelRatio(dpr);

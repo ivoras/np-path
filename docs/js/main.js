@@ -6,6 +6,10 @@ import { Audio } from './engine/audio.js';
 import { Player } from './engine/player.js';
 import { VO, wait as sleep } from './engine/vo.js';
 import { disposeTree, C } from './engine/world.js';
+import { save } from './engine/save.js';
+import { Menu } from './engine/menu.js';
+import { TouchControls, isTouchDevice } from './engine/touch.js';
+import { Q, applyTier } from './engine/quality.js';
 
 import ch01 from './chapters/ch01.js';
 import ch02 from './chapters/ch02.js';
@@ -38,9 +42,9 @@ const $ = (id) => document.getElementById(id);
 function initGate() {
   const gate = $('gate'), form = $('gate-form'), input = $('gate-input'), err = $('gate-err');
 
-  if (sessionStorage.getItem('path.open') === '1') { openTitle(); return; }
+  if (sessionStorage.getItem('path.open') === '1') { gate.classList.add('hidden'); openTitle(); return; }
 
-  setTimeout(() => input.focus(), 400);
+  setTimeout(() => { if (!touchMode) input.focus(); }, 400);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -53,6 +57,7 @@ function initGate() {
     }
     if (ok) {
       try { sessionStorage.setItem('path.open', '1'); } catch {}
+      input.blur();
       gate.style.transition = 'opacity 1.6s ease';
       gate.style.opacity = '0';
       setTimeout(() => { gate.classList.add('hidden'); openTitle(); }, 1600);
@@ -78,7 +83,6 @@ function drawCover() {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const W = innerWidth, H = innerHeight;
 
-    // petrol ground
     const sky = g.createLinearGradient(0, 0, 0, H);
     sky.addColorStop(0, '#12332f');
     sky.addColorStop(0.52, '#0f2a29');
@@ -135,14 +139,14 @@ function drawCover() {
     g.closePath(); g.fill();
 
     // the lone figure, and a long shadow pointing back
-    const fy = H * 0.80, fh = H * 0.075;
+    const fy = H * 0.82, fh = H * 0.075;
     g.fillStyle = 'rgba(11,22,20,.55)';
     g.beginPath(); g.ellipse(hx, fy + fh * 0.5, fh * 0.20, fh * 0.7, 0, 0, 6.29); g.fill();
     g.fillStyle = '#3a2a1a';
     g.fillRect(hx - fh * 0.10, fy - fh * 0.62, fh * 0.20, fh * 0.62);
     g.beginPath(); g.arc(hx, fy - fh * 0.70, fh * 0.10, 0, 6.29); g.fill();
 
-    // grain and misregistration
+    // grain
     const img = g.getImageData(0, 0, cv.width, cv.height);
     const d = img.data;
     for (let i = 0; i < d.length; i += 4) {
@@ -151,102 +155,255 @@ function drawCover() {
     }
     g.putImageData(img, 0, 0);
 
-    // printed border
     g.strokeStyle = '#2a2a22'; g.lineWidth = Math.min(W, H) * 0.035;
     g.strokeRect(0, 0, W, H);
+
+    // darken behind the menu so the type always reads
+    const veil = g.createLinearGradient(0, 0, 0, H);
+    veil.addColorStop(0, 'rgba(11,22,20,.35)');
+    veil.addColorStop(0.4, 'rgba(11,22,20,.72)');
+    veil.addColorStop(1, 'rgba(11,22,20,.85)');
+    g.fillStyle = veil; g.fillRect(0, 0, W, H);
   };
   fit();
   addEventListener('resize', fit);
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Game state
+// ─────────────────────────────────────────────────────────────────
+let renderer, camera, post, audio, player, vo, scene, menu, touch;
+let clock, running = false, current = null, booted = false;
+let chapterIndex = 0, chapterToken = 0, paused = false;
+const input = { held: false, pressed: false };
+
+const touchMode = isTouchDevice(save.settings);
+
 function openTitle() {
+  if (!menu) initMenu();
+
+  // ?ch=4 jumps straight to a chapter, bypassing the menu. A convenience for
+  // a two-and-a-half-hour game, and how the scenes get smoke-tested.
+  const q = parseInt(new URLSearchParams(location.search).get('ch') || '', 10);
+  if (Number.isFinite(q) && q >= 1 && q <= CHAPTERS.length && !openTitle._jumped) {
+    openTitle._jumped = true;              // only on the first visit to the title
+    $('title').classList.add('hidden');
+    startGame(q);
+    return;
+  }
+
   $('title').classList.remove('hidden');
+  $('title').style.opacity = '1';
   drawCover();
-  $('begin').addEventListener('click', start, { once: true });
+  menu.main();
+}
+
+function initMenu() {
+  menu = new Menu($('menu-root'), $('pause-root'));
+
+  menu.onNew = () => { save.clearProgress(); startGame(1); };
+  menu.onContinue = () => startGame(save.furthest);
+  menu.onStartFrom = (n) => startGame(n);
+  menu.onResume = () => setPaused(false);
+  menu.onQuitToMain = () => quitToMain();
+  menu.onSettingChange = (key) => applySettings(key);
+
+  applySettings('*');
+}
+
+/** One place where a settings change reaches the running game. */
+function applySettings(key) {
+  const s = save.settings;
+  document.documentElement.style.setProperty('--text-scale', s.textScale);
+
+  if (audio?.ready) {
+    audio.setMuted(s.muted);
+    audio.setVolume(s.volume);
+  }
+  if (player) {
+    player.fovTarget = s.fov;
+  }
+  if (post) {
+    post.setPrintScale(s.printEffects);
+  }
+  if (touch) {
+    touch.setHanded(s.leftHanded);
+    if (isTouchDevice(s)) { if (running && !paused) touch.show(); }
+    else touch.hide();
+  }
+  if (key === 'quality') applyTier(s.quality);   // takes effect next chapter
 }
 
 // ─────────────────────────────────────────────────────────────────
-// The game
-// ─────────────────────────────────────────────────────────────────
-let renderer, camera, post, audio, player, vo, scene;
-let clock, running = false, chapterIndex = 0, current = null;
-const input = { held: false, pressed: false };
+async function boot() {
+  if (booted) return;
+  booted = true;
 
-async function start() {
-  $('title').classList.add('opacity-out');
-  $('title').style.transition = 'opacity 2s ease';
-  $('title').style.opacity = '0';
-  setTimeout(() => $('title').classList.add('hidden'), 2000);
-  $('hud').classList.remove('hidden');
+  applyTier(save.settings.quality);
 
   renderer = new THREE.WebGLRenderer({
     canvas: $('scene'), antialias: false, powerPreference: 'high-performance',
   });
   renderer.setClearColor(new THREE.Color(C.moor));
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = Q.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.08, 900);
+  camera = new THREE.PerspectiveCamera(save.settings.fov, innerWidth / innerHeight, 0.08, 900);
   scene = new THREE.Scene();
   post = new Post(renderer, scene, camera);
 
   audio = new Audio();
   audio.init();
   audio.resume();
-  audio.fadeIn(4);
 
   player = new Player(camera, $('scene'));
+  player.touchMode = touchMode;
   vo = new VO($('vo'), $('card'), $('chapter-title'), $('hint'), $('flash'));
+
+  if (touchMode || save.settings.forceTouch) {
+    touch = new TouchControls($('touch-root'), save.settings);
+    touch.onPause = () => setPaused(true);
+    touch.setHanded(save.settings.leftHanded);
+    player.touch = touch;
+  }
 
   clock = new THREE.Clock();
   running = true;
 
-  addEventListener('resize', () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-    post.resize();
-  });
+  addEventListener('resize', onResize);
+  addEventListener('orientationchange', () => setTimeout(onResize, 250));
 
-  // ── action input: E, Space, or the mouse ─────────────────────
-  const down = (e) => {
-    if (e.type === 'keydown' && !['KeyE', 'Space', 'Enter'].includes(e.code)) return;
+  // ── action input: E, Space, Enter, or the mouse ──────────────
+  const codes = ['KeyE', 'Space', 'Enter'];
+  addEventListener('keydown', (e) => {
+    if (e.code === 'Escape') { e.preventDefault(); togglePause(); return; }
+    if (paused || !codes.includes(e.code)) return;
     if (!input.held) input.pressed = true;
     input.held = true;
-  };
-  const up = (e) => {
-    if (e.type === 'keyup' && !['KeyE', 'Space', 'Enter'].includes(e.code)) return;
-    input.held = false;
-  };
-  addEventListener('keydown', down);
-  addEventListener('keyup', up);
-  addEventListener('mousedown', down);
-  addEventListener('mouseup', up);
+  });
+  addEventListener('keyup', (e) => { if (codes.includes(e.code)) input.held = false; });
+  addEventListener('mousedown', () => {
+    if (paused || touchMode) return;
+    if (!input.held) input.pressed = true;
+    input.held = true;
+  });
+  addEventListener('mouseup', () => { input.held = false; });
 
   addEventListener('keydown', (e) => {
-    if (e.code === 'KeyM') audio.setMuted(!audio.muted);
+    if (e.code === 'KeyM') { save.set('muted', !save.settings.muted); applySettings('muted'); }
   });
 
-  loop();
+  // a phone that locks or backgrounds should not keep the drone running
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && running && !paused) setPaused(true);
+  });
 
-  // ?ch=3 starts at a given chapter. A convenience for a two-and-a-half-hour
-  // game, and how the scenes get smoke-tested.
-  const q = parseInt(new URLSearchParams(location.search).get('ch') || '1', 10);
-  runChapter(Number.isFinite(q) ? Math.min(Math.max(q, 1), CHAPTERS.length) - 1 : 0);
+  applySettings('*');
+  loop();
+}
+
+function onResize() {
+  if (!camera) return;
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  post.resize();
+  checkOrientation();
+}
+
+function checkOrientation() {
+  const portrait = innerHeight > innerWidth;
+  $('rotate').classList.toggle('hidden', !(touchMode && portrait && running));
+}
+
+// ─────────────────────────────────────────────────────────────────
+async function startGame(chapter) {
+  const t = $('title');
+  t.style.transition = 'opacity 1.4s ease';
+  t.style.opacity = '0';
+  setTimeout(() => t.classList.add('hidden'), 1400);
+  $('hud').classList.remove('hidden');
+
+  await boot();
+  audio.resume();
+  audio.fadeIn(4);
+  if (touch) touch.show();
+  checkOrientation();
+
+  runChapter(Math.min(Math.max(chapter, 1), CHAPTERS.length) - 1);
+}
+
+function quitToMain() {
+  chapterToken++;                       // orphan any in-flight chapter script
+  paused = false;
+  player?.setPaused(false);
+  player?.disable();
+  if (touch) touch.hide();
+  audio?.fadeOut(1.2);
+  vo?.clear();
+  vo?.clearHint();
+  $('hud').classList.add('hidden');
+  $('rotate').classList.add('hidden');
+  document.getElementById('credits')?.remove();
+  if (current) {
+    current.chapter.dispose?.(current.ctx);
+    [...scene.children].forEach(disposeTree);
+    current = null;
+  }
+  post?.set('uFade', 1);
+  openTitle();
+}
+
+function togglePause() {
+  if (!running || !current) return;
+  setPaused(!paused);
+}
+
+function setPaused(p) {
+  if (!current) return;
+  paused = p;
+  player.setPaused(p);
+  if (p) {
+    audio?.fadeOut(0.4);
+    if (touch) touch.hide();
+    menu.pause();
+  } else {
+    menu.closeAll();
+    audio?.unsilence(0.8);
+    if (touch && isTouchDevice(save.settings)) touch.show();
+  }
 }
 
 // ── ctx helpers the chapter scripts run on ─────────────────────
-function makeCtx(chapter) {
+function makeCtx(chapter, token) {
+  const alive = () => running && token === chapterToken;
   return {
     THREE, scene, camera, renderer, post, audio, player, vo, chapter,
-    get actionHeld() { return input.held; },
-    get actionPressed() { return input.pressed; },
+    get actionHeld() { return input.held || !!touch?.actHeld; },
+    get actionPressed() { return input.pressed || !!touch?.actPressed; },
 
-    wait: sleep,
+    /**
+     * Pause-aware wait. Measured in real elapsed time, not frames — a
+     * per-frame decrement would stretch every timed beat in the game on a
+     * slow device, and this game is built out of timed beats.
+     */
+    wait: (s) => new Promise((resolve) => {
+      let left = s * 1000;
+      let last = performance.now();
+      const tick = (now) => {
+        if (!alive()) return resolve();
+        const dt = now - last;
+        last = now;
+        if (!paused) left -= dt;
+        if (left <= 0) return resolve();
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }),
 
     until: (fn) => new Promise((resolve) => {
       const check = () => {
-        if (!running) return resolve();
-        if (fn()) return resolve();
+        if (!alive()) return resolve();
+        if (!paused && fn()) return resolve();
         requestAnimationFrame(check);
       };
       check();
@@ -263,6 +420,7 @@ function makeCtx(chapter) {
       const from = post.get('uFade');
       const t0 = performance.now();
       const tick = () => {
+        if (!alive()) return resolve();
         const k = Math.min(1, (performance.now() - t0) / (dur * 1000));
         post.set('uFade', from + (to - from) * k);
         k < 1 ? requestAnimationFrame(tick) : resolve();
@@ -274,6 +432,7 @@ function makeCtx(chapter) {
       const from = post.get('uWhiteFade');
       const t0 = performance.now();
       const tick = () => {
+        if (!alive()) return resolve();
         const k = Math.min(1, (performance.now() - t0) / (dur * 1000));
         post.set('uWhiteFade', from + (to - from) * k);
         k < 1 ? requestAnimationFrame(tick) : resolve();
@@ -288,11 +447,14 @@ async function runChapter(i) {
   const chapter = CHAPTERS[i];
   if (!chapter) return theEnd();
 
+  const token = ++chapterToken;
+
   // ── tear down ────────────────────────────────────────────────
   if (current) {
     current.chapter.dispose?.(current.ctx);
     [...scene.children].forEach(disposeTree);
     vo.clear();
+    vo.clearHint();
   }
 
   scene = new THREE.Scene();
@@ -300,8 +462,10 @@ async function runChapter(i) {
   post.set('uFade', 1);
   post.set('uWhiteFade', 0);
 
-  const ctx = makeCtx(chapter);
+  const ctx = makeCtx(chapter, token);
   current = { chapter, ctx };
+
+  save.reach(i + 1);
 
   player.onStep = (e) => {
     audio.step(e.surface, e.vel);
@@ -309,9 +473,10 @@ async function runChapter(i) {
   };
 
   chapter.build(ctx);
+  applySettings('*');            // the chapter may have changed the camera
 
-  // title card, then fade up
   await vo.title(chapter.title, 3.2);
+  if (token !== chapterToken) return;
   await ctx.fade(0, 3);
 
   try {
@@ -319,11 +484,15 @@ async function runChapter(i) {
   } catch (err) {
     console.error(`[${chapter.id}]`, err);
   }
+  if (token !== chapterToken) return;
 
   // ── coda ─────────────────────────────────────────────────────
+  save.complete(i + 1);
   player.disable();
   await ctx.fade(1, 3);
   await sleep(1);
+  if (token !== chapterToken) return;
+
   if (chapter.coda) {
     await vo.card(chapter.coda, {
       invert: !!chapter.codaInvert,
@@ -331,6 +500,8 @@ async function runChapter(i) {
       hold: 5,
     });
   }
+  if (token !== chapterToken) return;
+
   vo.clear();
   post.set('uWhiteFade', 0);
   player.enable();
@@ -339,6 +510,7 @@ async function runChapter(i) {
 
 async function theEnd() {
   player.disable();
+  if (touch) touch.hide();
   audio.setScore(0, 4);
   audio.setWind(0, 3);
 
@@ -360,6 +532,12 @@ async function theEnd() {
   audio.fadeOut(0.1);            // cut off, mid-fall, at the last frame
 
   el.innerHTML += `<div class="cr-line" style="margin-top:2rem">The path is.</div>`;
+  const back = document.createElement('button');
+  back.className = 'menu-item quiet';
+  back.style.marginTop = '2rem';
+  back.textContent = 'main menu';
+  back.addEventListener('click', () => { el.remove(); quitToMain(); });
+  el.appendChild(back);
 }
 
 // ── the loop ────────────────────────────────────────────────────
@@ -370,13 +548,16 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const elapsed = clock.elapsedTime;
 
-  player.update(dt);
-  vo.update(dt);
-  current?.chapter.update?.(dt, current.ctx);
+  if (!paused) {
+    player.update(dt);
+    vo.update(dt);
+    current?.chapter.update?.(dt, current.ctx);
+  }
   post.update(dt, elapsed);
   post.render();
 
   input.pressed = false;         // edge-triggered, consumed once per frame
+  touch?.endFrame();
 }
 
 initGate();
