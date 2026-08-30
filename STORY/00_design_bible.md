@@ -377,9 +377,18 @@ a lockpick, a crate to push, an item to fetch from A to B, or a note that tells 
 
 ### Assist doctrine
 
-Every puzzle has a **timed, escalating, diegetic assist ladder that plateaus and never solves.**
-Assists are always: a camera drift, a change in the mix, a line of already-heard VO on the wind, or
-a 15% contrast change. Never: a glow, an outline, a marker, a prompt, a hint text, or a "press X."
+**Revised after playtesting.** The original rule was "never a glow, an outline, a marker, a prompt,
+a hint text, or a press-X" — and it produced a chapter 1 lens that nobody could tell was an object
+they could touch. Withholding affordance is not the same as withholding explanation. A player who
+cannot work out *how* to act never reaches the thing you were being austere about.
+
+So: **anything the player can act on carries a gold aura and throbs slowly**, and goes out the
+moment it is spent. Instructions name the verb for the input actually in use, and stay up for as
+long as the step lasts rather than flashing for five seconds.
+
+What is still withheld is the **answer**. The aura says *this is a thing*; it never says which
+collar is wrong, which cairn is next, or what the rhythm is. Assists beyond that stay diegetic and
+still plateau: a camera drift, a change in the mix, a line of already-heard VO on the wind.
 
 This is the direct answer to *The Shore*'s "no hints at any point" and *Necrophosis*'s over-railing.
 The game guides constantly and never once tells you anything.

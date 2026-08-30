@@ -63,6 +63,7 @@ export default {
     this.door = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.0, 0.22), matte(C.ash));
     this.door.position.set(0, 1.5, 3.72);
     scene.add(this.door);
+    ctx.highlight.add(this.door, { scale: 1.06, rate: 0.35 });
 
     // blood accumulates here — the door carries the record of every failure
     this.bloodGroup = new THREE.Group();
@@ -185,7 +186,8 @@ export default {
     // Flat. Domestic. The delivery of a man remembering to take a pill.
     vo.say('Eat a pebble.', { hold: 5 });
     this.phase = 'swallow';
-    vo.hint('press E', 5);
+    ctx.highlight.clear();
+    vo.hint(ctx.isTouch ? 'tap' : 'press E', 999);
     await until(() => this.ate);
 
     // ── the first Cut the player causes ──────────────────────────
@@ -383,7 +385,7 @@ export default {
       }
     }
 
-    if (this.phase === 'swallow' && ctx.actionPressed) this.ate = true;
+    if (this.phase === 'swallow' && ctx.actionPressed) { this.ate = true; ctx.vo.clearHint(); }
 
     // the others drift — two seconds, then never again
     if (this.drift > 0) {

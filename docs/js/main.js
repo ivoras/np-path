@@ -10,6 +10,7 @@ import { save } from './engine/save.js';
 import { Menu } from './engine/menu.js';
 import { TouchControls, isTouchDevice } from './engine/touch.js';
 import { Q, applyTier } from './engine/quality.js';
+import { Highlight } from './engine/highlight.js';
 
 import ch01 from './chapters/ch01.js';
 import ch02 from './chapters/ch02.js';
@@ -172,7 +173,7 @@ function drawCover() {
 // ─────────────────────────────────────────────────────────────────
 // Game state
 // ─────────────────────────────────────────────────────────────────
-let renderer, camera, post, audio, player, vo, scene, menu, touch;
+let renderer, camera, post, audio, player, vo, scene, menu, touch, highlight;
 let clock, running = false, current = null, booted = false;
 let chapterIndex = 0, chapterToken = 0, paused = false;
 const input = { held: false, pressed: false };
@@ -256,6 +257,7 @@ async function boot() {
   audio.init();
   audio.resume();
 
+  highlight = new Highlight(scene);
   player = new Player(camera, $('scene'));
   player.touchMode = touchMode;
   vo = new VO($('vo'), $('card'), $('chapter-title'), $('hint'), $('flash'));
@@ -377,7 +379,7 @@ function setPaused(p) {
 function makeCtx(chapter, token) {
   const alive = () => running && token === chapterToken;
   return {
-    THREE, scene, camera, renderer, post, audio, player, vo, chapter,
+    THREE, scene, camera, renderer, post, audio, player, vo, chapter, highlight,
     get isTouch() { return !!touch?.enabled; },
     get actionHeld() { return input.held || !!touch?.actHeld; },
     get actionPressed() { return input.pressed || !!touch?.actPressed; },
@@ -460,8 +462,10 @@ async function runChapter(i) {
 
   scene = new THREE.Scene();
   post.setScene(scene);
+  highlight.setScene(scene);
   post.set('uFade', 1);
   post.set('uWhiteFade', 0);
+  post.set('uEyepiece', 0);
 
   const ctx = makeCtx(chapter, token);
   current = { chapter, ctx };
@@ -567,6 +571,7 @@ function loop() {
   if (!paused) {
     player.update(dt);
     vo.update(dt);
+    highlight.update(dt);
     pointerHint();
     current?.chapter.update?.(dt, current.ctx);
   }

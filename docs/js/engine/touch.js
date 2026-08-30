@@ -18,6 +18,8 @@
 
 const STICK_RADIUS = 62;      // px of travel that reads as full deflection
 const DEAD_ZONE = 0.10;
+const TAP_SLOP = 12;          // px of travel that still counts as a tap
+const HOLD_MS = 220;          // press longer than this and it is a hold
 
 export class TouchControls {
   constructor(root, settings) {
@@ -57,11 +59,9 @@ export class TouchControls {
     this.stickKnob = el('tc-knob', this.wrap);
     this.stickBase.hidden = this.stickKnob.hidden = true;
 
-    this.act = el('tc-act', this.wrap);
-    this.act.textContent = '·';
-    this.act.setAttribute('role', 'button');
-    this.act.setAttribute('aria-label', 'act');
-
+    // No act button. It sat on the look side, looked like a second pad, and
+    // did nothing for the camera — players read it as a broken view control.
+    // Acting is a tap on the look side instead; dragging there still looks.
     this.pause = el('tc-pause', this.wrap);
     this.pause.textContent = '≡';
     this.pause.setAttribute('role', 'button');
@@ -70,30 +70,15 @@ export class TouchControls {
     this.hintMove = el('tc-hint tc-hint-move', this.wrap);
     this.hintMove.textContent = 'walk';
     this.hintLook = el('tc-hint tc-hint-look', this.wrap);
-    this.hintLook.textContent = 'look';
+    this.hintLook.textContent = 'look · tap to act';
   }
 
   _bind() {
     const surface = this.wrap;
     const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
 
-    // The two buttons swallow their own pointers, so a thumb resting on one
-    // never also steers the camera.
-    this.act.addEventListener('pointerdown', (e) => {
-      stop(e);
-      this.act.setPointerCapture?.(e.pointerId);
-      if (!this.actHeld) this.actPressed = true;
-      this.actHeld = true;
-      this.act.classList.add('down');
-    });
-    const releaseAct = (e) => {
-      stop(e);
-      this.actHeld = false;
-      this.act.classList.remove('down');
-    };
-    this.act.addEventListener('pointerup', releaseAct);
-    this.act.addEventListener('pointercancel', releaseAct);
-
+    // The pause button swallows its own pointer so a thumb on it never also
+    // steers the camera.
     this.pause.addEventListener('pointerdown', (e) => { stop(e); this.onPause?.(); });
 
     surface.addEventListener('pointerdown', (e) => {
@@ -113,6 +98,15 @@ export class TouchControls {
         this.lookId = e.pointerId;
         this.lookLast.x = e.clientX;
         this.lookLast.y = e.clientY;
+        // a stationary press is an act; a moving one is a look
+        this.lookStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+        this.lookMoved = 0;
+        this.holdTimer = setTimeout(() => {
+          if (this.lookId !== null && this.lookMoved < TAP_SLOP) {
+            if (!this.actHeld) this.actPressed = true;
+            this.actHeld = true;
+          }
+        }, HOLD_MS);
       }
       this._fadeHints();
     });
@@ -136,10 +130,18 @@ export class TouchControls {
           `translate(${this.origin.x + nx * clamped}px, ${this.origin.y + ny * clamped}px) translate(-50%,-50%)`;
       } else if (e.pointerId === this.lookId) {
         e.preventDefault();
-        this.lookDX += e.clientX - this.lookLast.x;
-        this.lookDY += e.clientY - this.lookLast.y;
+        const ddx = e.clientX - this.lookLast.x;
+        const ddy = e.clientY - this.lookLast.y;
+        this.lookDX += ddx;
+        this.lookDY += ddy;
         this.lookLast.x = e.clientX;
         this.lookLast.y = e.clientY;
+        this.lookMoved += Math.hypot(ddx, ddy);
+        if (this.lookMoved >= TAP_SLOP && this.actHeld) {
+          // it turned into a drag after all — stop acting, start looking
+          this.actHeld = false;
+          clearTimeout(this.holdTimer);
+        }
       }
     });
 
@@ -149,6 +151,11 @@ export class TouchControls {
         this.moveX = this.moveY = 0;
         this._hideStick();
       } else if (e.pointerId === this.lookId) {
+        clearTimeout(this.holdTimer);
+        // a short, stationary press that never became a hold is a tap
+        const quick = performance.now() - (this.lookStart?.t ?? 0) < HOLD_MS;
+        if (quick && this.lookMoved < TAP_SLOP && !this.actHeld) this.actPressed = true;
+        this.actHeld = false;
         this.lookId = null;
       }
     };
@@ -194,7 +201,7 @@ export class TouchControls {
     this.lookDX = this.lookDY = 0;
     this.actHeld = this.actPressed = false;
     this.moveId = this.lookId = null;
-    this.act.classList.remove('down');
+    clearTimeout(this.holdTimer);
     this._hideStick();
   }
 

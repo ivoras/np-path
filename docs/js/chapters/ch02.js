@@ -80,6 +80,7 @@ export default {
       const p = makePebble(i + 300, 0.06);
       p.position.set(-0.5 + i * 0.5, H(0, -33) + 0.06, -33 + (i % 2) * 0.3);
       scene.add(p);
+      ctx.highlight.add(p, { scale: 1.9, rate: 0.6 });
       this.carried.push(p);
     }
     this.pebblesHeld = 0;
@@ -133,6 +134,7 @@ export default {
       g.userData = { built: 0, index: i, stones: g.children.slice() };
       scene.add(g);
       this.cairns.push(g);
+      g.children.forEach(st => ctx.highlight.add(st, { scale: 1.5, rate: 0.45 }));
     });
 
     // ── the turret, for the payoff ───────────────────────────────
@@ -356,6 +358,7 @@ export default {
       this.carried.forEach((p) => {
         if (p.visible && p.position.distanceTo(player.pos) < 1.6) {
           p.visible = false;
+          ctx.highlight.remove(p);
           this.pebblesHeld++;
           audio.stoneSet();
         }
@@ -424,6 +427,7 @@ export default {
 
           if (u.built >= 1 && !u.done) {
             u.done = true;
+            u.stones.forEach(st => ctx.highlight.remove(st));
             if (u.index === 2) {
               // the third: no capstone exists anywhere on the plateau
               P.searching = 1;

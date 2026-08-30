@@ -233,19 +233,7 @@ input[type=range]::-moz-range-thumb{
 .tc-knob{width:52px;height:52px;background:rgba(237,226,194,.55);
   box-shadow:0 0 24px rgba(237,226,194,.25)}
 
-.tc-act{
-  position:fixed;right:calc(1.6rem + var(--safe-r));
-  bottom:calc(2.2rem + var(--safe-b));
-  width:74px;height:74px;border-radius:50%;
-  border:1px solid rgba(237,226,194,.34);background:rgba(11,22,20,.35);
-  color:rgba(237,226,194,.75);
-  display:flex;align-items:center;justify-content:center;
-  font-family:var(--serif);font-size:1.6rem;
-  transition:background .12s,transform .12s,border-color .12s;
-  touch-action:none;
-}
-.tc-act.down{background:rgba(237,226,194,.28);border-color:var(--bone);transform:scale(.94)}
-.tc.lefty .tc-act{right:auto;left:calc(1.6rem + var(--safe-l))}
+/* the act button is gone — a tap on the look side acts instead */
 
 .tc-pause{
   position:fixed;right:calc(1rem + var(--safe-r));top:calc(1rem + var(--safe-t));

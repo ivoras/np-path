@@ -61,6 +61,7 @@ const RisoShader = {
     uSqueeze:     { value: 0.0 },   // ch05 "Flattened. / Expanded."
     uBitonal:     { value: 0.0 },   // ch06 — two values, nothing between
     uPrint:       { value: 1.0 },   // player setting: scales grain + misregistration
+    uEyepiece:    { value: 0.0 },   // ch01: you are looking THROUGH the lens
 
     cMoor:   { value: RAW.moor },
     cPetrol: { value: RAW.petrol },
@@ -96,6 +97,7 @@ const RisoShader = {
     uniform float uSqueeze;
     uniform float uBitonal;
     uniform float uPrint;
+    uniform float uEyepiece;
     uniform vec3  cMoor, cPetrol, cCyan, cBone, cEmber, cAsh;
     varying vec2 vUv;
 
@@ -199,6 +201,19 @@ const RisoShader = {
       col *= 1.0 + tooth * grain * 2.0;
       col += tooth * grain * 0.22;
 
+      // ── the eyepiece ──────────────────────────────────────────
+      // When the player is at the great lens the frame becomes a view down a
+      // tube. Without this there is nothing to say the telescope is a thing
+      // you look through rather than a prop standing in the room.
+      if (uEyepiece > 0.001){
+        vec2 e = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+        float r = length(e);
+        float bore = smoothstep(0.30, 0.42, r);                 // the tube wall
+        float ring = exp(-pow((r - 0.30) * 26.0, 2.0)) * 0.5;   // brass at the rim
+        col = mix(col, cMoor * 0.25, bore * uEyepiece);
+        col += cEmber * ring * uEyepiece * 0.5;
+      }
+
       // ── printed border ────────────────────────────────────────
       vec2 v = vUv - 0.5;
       float vig = smoothstep(0.78, 0.30, length(v * vec2(1.06, 1.0)));
@@ -251,6 +266,9 @@ export class Post {
 
   set(name, value) { if (this.u[name]) this.u[name].value = value; }
   get(name) { return this.u[name] ? this.u[name].value : undefined; }
+
+  /** 0 = normal view, 1 = looking down the lens. */
+  setEyepiece(v) { this.u.uEyepiece.value = v; }
 
   /** Ink-bleed bloom strength. ch06 turns it off — nothing there glows. */
   setBloom(strength) { this.bloom.strength = Q.bloom ? strength : 0; }

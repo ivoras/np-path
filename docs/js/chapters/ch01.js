@@ -192,6 +192,23 @@ export default {
       lens.add(col);
       this.collars.push(col);
     });
+    // Actual glass. The tube was solid brass end to end, which is why it did
+    // not read as something you look through.
+    const glass = (r, z) => {
+      const g = new THREE.Mesh(
+        new THREE.CircleGeometry(r, 24),
+        new THREE.MeshBasicMaterial({
+          color: C.cyan, transparent: true, opacity: 0.30,
+          depthWrite: false, side: THREE.DoubleSide,
+        })
+      );
+      g.position.z = z;
+      lens.add(g);
+      return g;
+    };
+    this.objective = glass(0.30, 1.28);      // far end, aimed at the path
+    this.eyepiece  = glass(0.16, -1.28);     // the end you put your eye to
+
     const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.22, 1.2, 10), matte(C.ash));
     mount.position.y = -0.9;
     lens.add(mount);
@@ -292,6 +309,12 @@ export default {
     vo.say('I observe.', { voice: 'watcher', hold: 4 });
 
     // ── PUZZLE: the great lens ───────────────────────────────────
+    // The lens carries the gold aura from the moment you arrive, so the one
+    // thing in a dark room that does anything is visibly the one thing that
+    // does anything.
+    ctx.highlight.add(this.lens.children[0], { scale: 1.5, rate: 0.4 });
+    this.collars.forEach(c => ctx.highlight.add(c, { scale: 1.6, rate: 0.5 }));
+
     // Say where to go. The turret is dark and the lens is the only thing in
     // it that does anything; a player who does not walk to it gets no hints
     // at all and simply stands there.
@@ -319,20 +342,26 @@ export default {
 
     vo.say('I rest my trembling hands on the great lens overlooking the path. It continues, oblivious to its audience.', { voice: 'watcher', delay: 2, hold: 9 });
 
-    const LOOK = ctx.isTouch ? 'drag to look' : 'move the mouse';
-    const ACT  = ctx.isTouch ? 'the button' : 'E';
+    const LOOK = ctx.isTouch ? 'drag' : 'move the mouse';
+    const ACT  = ctx.isTouch ? 'tap' : 'press E';
 
-    // the wipe: drag a look-direction across the eyepiece
-    vo.hint(`wipe the glass — ${LOOK}`, 7);
+    // you are at the eyepiece now — the frame becomes a view down the tube
+    this.eyepieceIn = true;
+
+    // The instruction stays up for as long as the step lasts. A prompt that
+    // flashes for five seconds and vanishes is the same as no prompt.
+    vo.hint(`${LOOK} to wipe the glass`, 999);
     await until(() => this.lensState.wiped >= 1);
     post.set('uSmear', 1.0);            // you polish the glass with a dirty sleeve
     vo.hint('it will not come properly clean', 4);
-    await wait(2);
-    vo.hint(`three collars · ${ACT} takes the next one · ${LOOK} to turn it`, 11);
+    await wait(4);
+    vo.hint(`${ACT} for the next collar · ${LOOK} to turn it · line the two images up`, 999);
 
     await until(() => this.lensState.solved);
 
     // ── the solve ────────────────────────────────────────────────
+    vo.clearHint();
+    ctx.highlight.clear();              // spent: the aura goes out
     // Perfect registration. Four full seconds with no audio at all.
     audio.silence(0.4);
     post.set('uMisreg', 0);
@@ -343,6 +372,7 @@ export default {
     post.set('uMisreg', 2.2);
     this.lensState.solved = false;
     this.lensState.collars = [0.3, -0.22, 0.18];
+    this.eyepieceIn = false;
     await wait(1.6);
 
     await cut();
@@ -482,6 +512,8 @@ export default {
         setTimeout(() => audio.knock('inside', v), 3400);
       }
     }
+
+    post.ease('uEyepiece', this.eyepieceIn ? 1 : 0, dt, 1.4);
 
     // ── the lens puzzle ──────────────────────────────────────────
     if (this.phase === 'lens' && this.lensState) {

@@ -108,6 +108,7 @@ export default {
         n.userData = { i, filled: false };
         scene.add(n);
         this.niches.push(n);
+        ctx.highlight.add(n, { scale: 2.0, rate: 0.5 });
         const light = new THREE.PointLight(C.bone, 0, 7, 2);
         light.position.copy(n.position);
         scene.add(light);
@@ -127,6 +128,7 @@ export default {
       p.position.set(s.x, H(0, s.z) + s.y, s.z);
       p.userData = s;
       scene.add(p);
+      ctx.highlight.add(p, { scale: 2.0, rate: 0.62 });
       this.findable.push(p);
     });
     // one of them is calcified into a standing figure
@@ -298,7 +300,7 @@ export default {
       // find the pebbles
       this.findable.forEach(p => {
         if (p.visible && p.position.distanceTo(player.pos) < 1.7 && ctx.actionPressed) {
-          p.visible = false; this.held++; audio.stoneSet();
+          p.visible = false; ctx.highlight.remove(p); this.held++; audio.stoneSet();
         }
       });
 
@@ -308,6 +310,7 @@ export default {
           if (n.userData.filled) continue;
           if (n.position.distanceTo(player.pos) > 1.9) continue;
           n.userData.filled = true;
+          ctx.highlight.remove(n);
           n.userData.light.intensity = 3.2;
           n.material = unlit(C.bone);
           this.held--;
